@@ -107,7 +107,7 @@ function InfoBtn({onTap,color="#e8b86d"}){return <button onPointerDown={onTap} s
 function InfoModal({open,onClose,title,color,sections}){
 if(!open)return null;
 return(
-<div onPointerDown={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:9000,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+<div onPointerDown={onClose} style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.8)",zIndex:9000,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
 <div onPointerDown={e=>e.stopPropagation()} style={{background:"#1a1a24",borderRadius:"20px 20px 0 0",padding:"24px 20px 48px",maxWidth:540,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
 <div style={{fontSize:"1.2rem",fontWeight:800,color}}>{title}</div>
@@ -164,7 +164,7 @@ const bg=isDark?'#1a1a24':'#f5f5fa',txt=isDark?'#ede8f5':'#1a1a2e',mut=isDark?'#
 const gameLabels={okey:'🀄 Super (Okey)',batak:'♠️ Batak',pishti:'🃏 Pishti',trix:'♥️ Trix',oglan:'🎴 Oğlan'};
 const isEmpty=Object.keys(stats).length===0;
 return(
-<div onPointerDown={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',zIndex:9500,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+<div onPointerDown={onClose} style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.75)',zIndex:9500,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
 <div onPointerDown={e=>e.stopPropagation()} style={{background:bg,borderRadius:'20px 20px 0 0',padding:'24px 20px 48px',maxWidth:540,width:'100%',maxHeight:'88vh',overflowY:'auto'}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
 <div style={{fontSize:'1.15rem',fontWeight:800,color:'#e8b86d'}}>📊 {TL.statistieken}</div>
@@ -240,10 +240,10 @@ const fanAngles=[-26,-13,0,13,26],fanOffsets=[-36,-18,0,18,36];
 const t=tick;
 return(
 <div style={{background:isDark?"#07070f":"#f5f5fa",minHeight:"100vh",position:"relative"}}>
-<div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
+<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,pointerEvents:"none",zIndex:0,overflow:"hidden"}}>
 <div style={{position:"absolute",width:"80vw",height:"80vw",borderRadius:"50%",background:"radial-gradient(circle,rgba(140,80,255,0.2) 0%,transparent 70%)",top:(25+Math.sin(t*0.018)*15)+"%",left:(-5+Math.cos(t*0.012)*10)+"%"}}/>
 <div style={{position:"absolute",width:"65vw",height:"65vw",borderRadius:"50%",background:"radial-gradient(circle,rgba(232,184,109,0.18) 0%,transparent 70%)",top:(45+Math.cos(t*0.015)*18)+"%",right:(-10+Math.sin(t*0.020)*12)+"%"}}/>
-<div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)",backgroundSize:"44px 44px"}}/>
+<div style={{position:"absolute",top:0,left:0,right:0,bottom:0,backgroundImage:"linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)",backgroundSize:"44px 44px"}}/>
 </div>
 <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"44px 20px 60px",maxWidth:500,margin:"0 auto"}}>
 <button onPointerDown={toggleTheme} style={{position:"absolute",top:16,left:16,width:38,height:38,borderRadius:12,background:"rgba(255,255,255,0.06)",border:"1.5px solid rgba(255,255,255,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.1rem",zIndex:10,...TAP}}>{isDark?"☀️":"🌙"}</button>
@@ -290,6 +290,148 @@ const SUITS={clubs:{e:"♣️",label:"Klaveren",mult:2,bonus:-20},spades:{e:"♠
 const OC={bg:"#13111f",surface:"#1e1b2e",input:"#0e0d18",gold:"#e8b86d",green:"#7ec96a",red:"#c96a6a",blue:"#6ab4c9",purple:"#a06ae8",orange:"#e8956d",muted:"#7a738f",text:"#ede8f5"};
 const oCard={background:OC.surface,borderRadius:16,padding:20,marginBottom:16};
 const oLbl={fontSize:"0.68rem",textTransform:"uppercase",letterSpacing:".1em",color:OC.muted,marginBottom:10,display:"block"};
+// ── DEALER ANIMATION COMPONENT ──
+const CARD_SUITS=[
+{s:'♠',c:'#6aaaff',bg:'#091428'},
+{s:'♥',c:'#ff7aaa',bg:'#2a0d18'},
+{s:'♦',c:'#e8b86d',bg:'#1a1508'},
+{s:'♣',c:'#7ec96a',bg:'#0d2014'},
+{s:'♠',c:'#a06ae8',bg:'#1a0828'},
+{s:'♥',c:'#ff9966',bg:'#2a1408'},
+{s:'♦',c:'#64c9e8',bg:'#081828'},
+{s:'♣',c:'#e8e06a',bg:'#1a1a08'},
+{s:'A',c:'#ffffff',bg:'#1a1428'},
+{s:'K',c:'#e8b86d',bg:'#1a1408'},
+{s:'Q',c:'#ff7aaa',bg:'#2a0d18'},
+{s:'J',c:'#7ec96a',bg:'#0d2014'},
+{s:'10',c:'#6aaaff',bg:'#091428'},
+];
+
+function DealerAnimation({players,color,onDone}){
+const [phase,setPhase]=useState('dealing');
+const [dealtCards,setDealtCards]=useState([]);
+const [revealed,setRevealed]=useState([]);
+const [winner,setWinner]=useState(null);
+const [cardValues,setCardValues]=useState([]);
+
+useEffect(()=>{
+  // Assign random card values to each player
+  const vals=players.map(()=>Math.floor(Math.random()*13)+1);
+  setCardValues(vals);
+  
+  // Deal cards one by one with delay
+  players.forEach((_,i)=>{
+    setTimeout(()=>{
+      setDealtCards(d=>[...d,i]);
+      haptic('light');
+    },i*600+300);
+  });
+  
+  // After all dealt, pause then reveal
+  setTimeout(()=>{
+    setPhase('revealing');
+    players.forEach((_,i)=>{
+      setTimeout(()=>{
+        setRevealed(r=>[...r,i]);
+        haptic('light');
+      },i*500+200);
+    });
+    // After all revealed, show winner
+    setTimeout(()=>{
+      const maxVal=Math.max(...vals);
+      // If tie, pick randomly among tied
+      const tied=vals.reduce((arr,v,i)=>v===maxVal?[...arr,i]:arr,[]);
+      const w=tied[Math.floor(Math.random()*tied.length)];
+      setWinner(w);
+      setPhase('result');
+      haptic('success');
+      spawnConfetti();
+      spawnEmojis(['🃏','🎴','♠️','♥️'],10);
+    },players.length*500+800);
+  },players.length*600+800);
+},[]);
+
+const cardLabel=v=>{if(v===1)return'A';if(v===11)return'J';if(v===12)return'Q';if(v===13)return'K';return String(v);};
+
+return(
+<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.92)',zIndex:9800,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24}}>
+  <div style={{fontSize:'0.8rem',color:'rgba(255,255,255,0.4)',textTransform:'uppercase',letterSpacing:'0.15em',marginBottom:24}}>
+    {phase==='result'?'🎴 Eerste dealer':phase==='revealing'?'Kaarten omdraaien...':'Kaarten uitdelen...'}
+  </div>
+  
+  <div style={{display:'flex',flexWrap:'wrap',gap:12,justifyContent:'center',marginBottom:32}}>
+    {players.map((name,i)=>{
+      const isDealt=dealtCards.includes(i);
+      const isRevealed=revealed.includes(i);
+      const isWinner=winner===i;
+      const suit=CARD_SUITS[i%CARD_SUITS.length];
+      const val=cardValues[i];
+      
+      return(
+        <div key={i} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,transition:'transform 0.3s',transform:isWinner&&phase==='result'?'scale(1.15)':'scale(1)'}}>
+          {/* Card */}
+          <div style={{
+            width:72,height:100,borderRadius:12,
+            background:isRevealed?`linear-gradient(145deg,${suit.bg},#1a1428)`:isDealt?'linear-gradient(145deg,#2a2a3a,#1a1a28)':'transparent',
+            border:isDealt?`2px solid ${isWinner&&phase==='result'?suit.c:'rgba(255,255,255,0.15)'}`:'2px solid rgba(255,255,255,0.05)',
+            boxShadow:isWinner&&phase==='result'?`0 0 30px ${suit.c}88,0 8px 24px rgba(0,0,0,0.6)`:'0 4px 16px rgba(0,0,0,0.5)',
+            display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+            transition:'all 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+            transform:isDealt?'translateY(0) rotateY(0deg)':'translateY(-40px)',
+            opacity:isDealt?1:0,
+            position:'relative',
+            overflow:'hidden',
+          }}>
+            {isDealt&&!isRevealed&&(
+              <div style={{position:'absolute',top:0,left:0,right:0,bottom:0,background:'linear-gradient(135deg,#2a2a4a,#1a1a30)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <div style={{fontSize:'1.8rem',opacity:0.3}}>🂠</div>
+              </div>
+            )}
+            {isRevealed&&(
+              <>
+                <div style={{position:'absolute',top:6,left:8,fontSize:'0.75rem',fontWeight:900,color:suit.c}}>{cardLabel(val)}</div>
+                <div style={{fontSize:'2rem',color:suit.c,fontWeight:900,textShadow:`0 0 12px ${suit.c}`}}>{suit.s}</div>
+                <div style={{position:'absolute',bottom:6,right:8,fontSize:'0.75rem',fontWeight:900,color:suit.c,transform:'rotate(180deg)'}}>{cardLabel(val)}</div>
+              </>
+            )}
+            {isWinner&&phase==='result'&&(
+              <div style={{position:'absolute',top:-2,right:-2,width:20,height:20,borderRadius:'50%',background:'#e8b86d',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.6rem'}}>👑</div>
+            )}
+          </div>
+          {/* Name */}
+          <div style={{fontSize:'0.8rem',fontWeight:700,color:isWinner&&phase==='result'?color:'rgba(255,255,255,0.6)',textAlign:'center',maxWidth:80,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+            {name}
+          </div>
+          {isRevealed&&(
+            <div style={{fontSize:'0.7rem',color:isWinner&&phase==='result'?color:'rgba(255,255,255,0.3)',fontWeight:isWinner?800:400}}>
+              {isWinner&&phase==='result'?'🎴 deelt!':cardLabel(val)}
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </div>
+  
+  {phase==='result'&&winner!==null&&(
+    <div style={{textAlign:'center',marginBottom:32,animation:'popIn 0.5s cubic-bezier(0.34,1.56,0.64,1)'}}>
+      <div style={{fontSize:'1.4rem',fontWeight:800,color,marginBottom:4}}>{players[winner]} begint met delen!</div>
+      <div style={{fontSize:'0.78rem',color:'rgba(255,255,255,0.4)'}}>Hoogste kaart deelt als eerste</div>
+    </div>
+  )}
+  
+  {phase==='result'&&(
+    <button onPointerDown={()=>onDone(winner)} style={{background:color,color:'#0d0d14',border:'none',borderRadius:14,padding:'16px 40px',fontSize:'1rem',fontWeight:800,touchAction:'manipulation',cursor:'pointer',animation:'slideUp 0.4s ease-out'}}>
+      ▶️ Spel starten
+    </button>
+  )}
+</div>
+);
+}
+// ── OKEY ──
+const SUITS={clubs:{e:"♣️",label:"Klaveren",mult:2,bonus:-20},spades:{e:"♠️",label:"Schoppen",mult:3,bonus:-30},diamonds:{e:"♦️",label:"Ruiten",mult:4,bonus:-40},hearts:{e:"♥️",label:"Harten",mult:5,bonus:-50}};
+const OC={bg:"#13111f",surface:"#1e1b2e",input:"#0e0d18",gold:"#e8b86d",green:"#7ec96a",red:"#c96a6a",blue:"#6ab4c9",purple:"#a06ae8",orange:"#e8956d",muted:"#7a738f",text:"#ede8f5"};
+const oCard={background:OC.surface,borderRadius:16,padding:20,marginBottom:16};
+const oLbl={fontSize:"0.68rem",textTransform:"uppercase",letterSpacing:".1em",color:OC.muted,marginBottom:10,display:"block"};
 
 function OkeyApp({onBack,lang}){
 const TL=LANG[lang]||LANG.nl;
@@ -299,6 +441,7 @@ const [nP,setNP]=useState(3);
 const [names,setNames]=useState(loadNames("okey")||["Speler 1","Speler 2","Speler 3","Speler 4"]);
 const [nR,setNR]=useState(8);
 const [rounds,setRounds]=useState([]);
+const [dealer,setDealer]=useState(0);
 const [suit,setSuit]=useState(null);
 const [winner,setWinner]=useState(-1);
 const [jokerWin,setJokerWin]=useState(false);
@@ -317,7 +460,7 @@ function toggleDraait(i){setDraait(d=>d.map((x,j)=>{if(j!==i)return x;if(!x)wind
 function tapWinner(i){if(winner===i){setWinner(-1);setJokerWin(false);}else{setWinner(i);setJokerWin(false);window.triggerRandom();}}
 function tapJokerWin(i){if(winner===i){const nx=!jokerWin;setJokerWin(nx);if(nx)window.triggerWinner(names[i],true);}}
 function resetRound(){setSuit(null);setWinner(-1);setJokerWin(false);setPts(["","","",""]);setBonuses(Array(4).fill(0).map(()=>({sameCard:false,doubleJoker:false})));setChufts(Array(4).fill(0).map(()=>({chuft:false,chuftJoker:false})));setDraait(Array(4).fill(false));}
-function undoRound(){haptic("light");setRounds(r=>r.slice(0,-1));}
+function undoRound(){haptic("light");setRounds(r=>{const nr=r.slice(0,-1);if(nr.length<r.length)setDealer(d=>(d-1+nP)%nP);return nr;});}
 function saveRound(){
 if(!suit){alert("Kies eerst de jokerkleur!");return;}
 const sd=SUITS[suit],anyChuft=chufts.slice(0,nP).some(c=>c.chuft),bm=sd.mult*(jokerWin?2:1)*(anyChuft?2:1);
@@ -325,31 +468,43 @@ const scores=players.map((_,i)=>{const ch=chufts[i],bon=bonuses[i],dr=draait[i];
 if(dr)sc+=500;else if(ch.chuft)sc+=ch.chuftJoker?-1000:-500;else if(winner===i)sc+=jokerWin?-500:-100;else{const v=parseInt(pts[i]);sc+=(isNaN(v)?0:Math.max(0,v))*bm;}
 if(bon.sameCard)sc+=sd.bonus;if(bon.doubleJoker)sc-=50;return sc;});
 players.forEach((_,i)=>{if(draait[i])setTimeout(()=>window.triggerShame(names[i]),400+i*200);});
-const nr=[...rounds,{scores,winner,jokerWin,suit,effectiveMult:bm,bonuses:bonuses.slice(0,nP).map(b=>({...b})),chufts:chufts.slice(0,nP).map(c=>({...c})),draait:draait.slice(0,nP)}];
-setRounds(nr);resetRound();
+const nextDealer=(dealer+1)%nP;
+const nr=[...rounds,{scores,winner,jokerWin,suit,effectiveMult:bm,bonuses:bonuses.slice(0,nP).map(b=>({...b})),chufts:chufts.slice(0,nP).map(c=>({...c})),draait:draait.slice(0,nP),dealerIdx:dealer}];
+setRounds(nr);setDealer(nextDealer);resetRound();
 if(nr.length>=nR){const tots=players.map((_,i)=>nr.reduce((s,r)=>s+r.scores[i],0));const wi=tots.indexOf(Math.min(...tots));recordWin('okey',names[wi]);recordGame('okey',players);setTimeout(()=>{setScreen("winner");haptic("success");spawnConfetti();spawnConfetti();},300);}
 }
-function reset(){setScreen("setup");setRounds([]);resetRound();}
+function reset(){setScreen("setup");setRounds([]);setDealer(0);resetRound();}
 const BB=<button onPointerDown={onBack} style={{background:"transparent",border:"none",color:OC.muted,fontSize:"0.85rem",padding:"0 0 16px",...TAP}}>{TL.terug}</button>;
-if(screen==="setup")return(<div style={{background:OC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:500,margin:"0 auto"}}>{BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:4}}><h1 style={{color:OC.gold,fontSize:"2rem",fontWeight:800}}>🀄 Super (Okey)</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={OC.gold}/></div><InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.okey}/><p style={{textAlign:"center",color:OC.muted,marginBottom:28}}>Bijhouden · Berekenen · Winnen</p><div style={oCard}><span style={oLbl}>👥 {TL.hoeveel}</span><div style={{display:"flex",gap:8}}>{[2,3,4].map(n=><Pill key={n} active={nP===n} onTap={()=>setNP(n)}>{TL.nSpelers.replace("{n}",n)}</Pill>)}</div></div><div style={oCard}><span style={oLbl}>✏️ {TL.namen}</span>{Array.from({length:nP},(_,i)=>(<div key={i} style={{display:"flex",gap:10,marginBottom:10,alignItems:"center"}}><span style={{color:OC.muted,fontSize:"0.8rem",width:20,textAlign:"center"}}>{i+1}</span><input style={{flex:1,background:OC.input,border:"2px solid #2e2a45",borderRadius:10,padding:"12px 14px",color:OC.text,fontSize:"1rem",fontWeight:600,outline:"none"}} value={names[i]} onChange={e=>setName(i,e.target.value)}/></div>))}</div><div style={oCard}><span style={oLbl}>🔢 {TL.aantalRondes}</span><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{[6,7,8,9,10,11].map(n=><Pill key={n} active={nR===n} onTap={()=>setNR(n)}>{n}</Pill>)}</div></div><Btn onTap={()=>{saveNames("okey",names.slice(0,nP));window.triggerRandom();setScreen("game");}} style={{background:OC.gold,color:OC.bg}}>{TL.spelStarten}</Btn></div>);
+
+if(screen==="setup")return(<div style={{background:OC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:500,margin:"0 auto"}}>{BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:4}}><h1 style={{color:OC.gold,fontSize:"2rem",fontWeight:800}}>🀄 Super (Okey)</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={OC.gold}/></div><InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.okey}/><p style={{textAlign:"center",color:OC.muted,marginBottom:28}}>Bijhouden · Berekenen · Winnen</p><div style={oCard}><span style={oLbl}>👥 {TL.hoeveel}</span><div style={{display:"flex",gap:8}}>{[2,3,4].map(n=><Pill key={n} active={nP===n} onTap={()=>setNP(n)}>{TL.nSpelers.replace("{n}",n)}</Pill>)}</div></div><div style={oCard}><span style={oLbl}>✏️ {TL.namen}</span>{Array.from({length:nP},(_,i)=>(<div key={i} style={{display:"flex",gap:10,marginBottom:10,alignItems:"center"}}><span style={{color:OC.muted,fontSize:"0.8rem",width:20,textAlign:"center"}}>{i+1}</span><input style={{flex:1,background:OC.input,border:"2px solid #2e2a45",borderRadius:10,padding:"12px 14px",color:OC.text,fontSize:"1rem",fontWeight:600,outline:"none"}} value={names[i]} onChange={e=>setName(i,e.target.value)}/></div>))}</div><div style={oCard}><span style={oLbl}>🔢 {TL.aantalRondes}</span><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{[6,7,8,9,10,11].map(n=><Pill key={n} active={nR===n} onTap={()=>setNR(n)}>{n}</Pill>)}</div></div><Btn onTap={()=>{saveNames("okey",names.slice(0,nP));setScreen("dealing");}} style={{background:OC.gold,color:OC.bg}}>{TL.spelStarten}</Btn></div>);
+
+if(screen==="dealing")return(<DealerAnimation players={players} color={OC.gold} onDone={w=>{setDealer(w);setScreen("game");}}/>);
+
 if(screen==="winner"){const wi=totals.indexOf(minT);return(<div style={{background:OC.bg,minHeight:"100vh",padding:"60px 16px",maxWidth:500,margin:"0 auto",textAlign:"center"}}><div style={{fontSize:"5rem",marginBottom:16,animation:"trophyPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards"}}>🏆</div><div style={{fontSize:"1.8rem",fontWeight:800,color:OC.gold,marginBottom:8,animation:"winnerGlow 2s ease-in-out infinite"}}>{names[wi]} {TL.winnerWint}</div><div style={{color:OC.muted,marginBottom:24}}>Laagste score na {nR} rondes</div><div style={{background:OC.surface,borderRadius:14,padding:16,marginBottom:28}}>{players.map((name,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}><span style={{fontWeight:600,color:totals[i]===minT?OC.green:OC.text}}>{i===wi?"🏆 ":""}{name}</span><span style={{fontWeight:800,color:OC.gold}}>{totals[i]}</span></div>))}</div><Btn onTap={reset} style={{background:OC.gold,color:OC.bg,marginBottom:12}}>🎴 Nieuw spel</Btn><Btn onTap={onBack} style={{background:"transparent",color:OC.muted,border:"2px solid #2e2a45"}}>{TL.terug}</Btn></div>);}
+
 const pct=Math.min(100,rounds.length/nR*100),anyChuft=chufts.slice(0,nP).some(c=>c.chuft),bonusPts=suit?SUITS[suit].bonus:0,mult=suit?SUITS[suit].mult*(jokerWin?2:1):null;
+const nextDealer=(dealer+1)%nP;
 return(<div style={{background:OC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:540,margin:"0 auto"}}>
 {BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}><h1 style={{color:OC.gold,fontSize:"1.8rem",fontWeight:800}}>🀄 Super (Okey)</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={OC.gold}/></div>
 <InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.okey}/>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><div style={{fontSize:"0.72rem",color:OC.muted}}>{TL.ronde} {rounds.length+1} / {nR}</div>{rounds.length>0&&<button onPointerDown={undoRound} style={{padding:"4px 10px",borderRadius:8,border:"1.5px solid rgba(201,106,106,0.4)",background:"transparent",color:OC.red,fontSize:"0.72rem",fontWeight:700,...TAP}}>{TL.ongedaan}</button>}</div>
-<div style={{background:"#2e2a45",borderRadius:40,height:6,marginBottom:20,overflow:"hidden"}}><div style={{height:"100%",width:pct+"%",background:`linear-gradient(90deg,${OC.gold},#f5d08a)`,borderRadius:40,transition:"width .4s"}}/></div>
-<div style={{display:"flex",gap:10,marginBottom:24}}>{players.map((name,i)=>{const best=rounds.length>0&&totals[i]===minT,worst=rounds.length>0&&totals[i]===maxT&&minT!==maxT;return(<div key={i} style={{flex:1,background:OC.surface,borderRadius:14,padding:"14px 6px",textAlign:"center",border:`2px solid ${best?OC.green:worst?OC.red:"transparent"}`}}><div style={{fontSize:"0.7rem",color:OC.muted,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</div><div style={{fontSize:"1.8rem",fontWeight:800,color:best?OC.green:worst?OC.red:OC.text}}>{totals[i]}</div></div>);})}</div>
+<div style={{background:"#2e2a45",borderRadius:40,height:6,marginBottom:12,overflow:"hidden"}}><div style={{height:"100%",width:pct+"%",background:`linear-gradient(90deg,${OC.gold},#f5d08a)`,borderRadius:40,transition:"width .4s"}}/></div>
+<div style={{display:"flex",gap:8,marginBottom:16,padding:"10px 14px",background:"rgba(232,184,109,0.08)",borderRadius:12,border:"1px solid rgba(232,184,109,0.2)",alignItems:"center"}}>
+  <span style={{fontSize:"1rem"}}>🎴</span>
+  <div style={{flex:1}}><span style={{fontSize:"0.72rem",color:OC.muted}}>Deelt nu: </span><span style={{fontWeight:800,color:OC.gold}}>{players[dealer]}</span></div>
+  <div style={{fontSize:"0.65rem",color:OC.muted}}>Volgende: {players[nextDealer]}</div>
+</div>
+<div style={{display:"flex",gap:10,marginBottom:20}}>{players.map((name,i)=>{const best=rounds.length>0&&totals[i]===minT,worst=rounds.length>0&&totals[i]===maxT&&minT!==maxT;return(<div key={i} style={{flex:1,background:OC.surface,borderRadius:14,padding:"10px 4px",textAlign:"center",border:`2px solid ${i===dealer?OC.gold:best?OC.green:worst?OC.red:"transparent"}`}}>{i===dealer&&<div style={{fontSize:"0.5rem",color:OC.gold,fontWeight:800,marginBottom:2}}>🎴 DEELT</div>}<div style={{fontSize:"0.65rem",color:OC.muted,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</div><div style={{fontSize:"1.6rem",fontWeight:800,color:best?OC.green:worst?OC.red:OC.text}}>{totals[i]}</div></div>);})}</div>
 <div style={oCard}><div style={{fontWeight:700,color:OC.gold,marginBottom:14}}>{TL.stap1}</div><div style={{display:"flex",gap:8}}>{Object.entries(SUITS).map(([key,s])=>(<button key={key} onPointerDown={()=>{setSuit(key);window.triggerRandom();}} style={{flex:1,padding:"12px 4px",borderRadius:12,border:`2px solid ${suit===key?OC.gold:"#2e2a45"}`,background:suit===key?"rgba(232,184,109,0.12)":"transparent",...TAP}}><div style={{fontSize:"1.4rem"}}>{s.e}</div><div style={{fontSize:"0.62rem",fontWeight:700,color:suit===key?OC.gold:OC.muted}}>×{s.mult}</div></button>))}</div></div>
 <div style={oCard}><div style={{fontWeight:700,color:OC.gold,marginBottom:8}}>{TL.stap2}</div><div style={{fontSize:"0.72rem",color:OC.blue,marginBottom:12}}>🎴 = {suit?`${bonusPts} punten`:"volgt kleur"} · 🃟🃟 = altijd −50</div><div style={{display:"grid",gridTemplateColumns:`1fr 40px 40px`,gap:8,marginBottom:8}}><span style={{fontSize:"0.62rem",color:OC.muted}}>Speler</span><span style={{fontSize:"0.62rem",color:OC.muted,textAlign:"center"}}>🎴</span><span style={{fontSize:"0.62rem",color:OC.muted,textAlign:"center"}}>🃟🃟</span></div>{players.map((name,i)=>(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 40px 40px",gap:8,marginBottom:10,alignItems:"center"}}><div style={{fontSize:"0.9rem",fontWeight:600}}>{name}</div><IconBtn small onTap={()=>toggleBonus(i,'sameCard')} active={bonuses[i].sameCard} color={OC.blue}>🎴</IconBtn><IconBtn small onTap={()=>toggleBonus(i,'doubleJoker')} active={bonuses[i].doubleJoker} color={OC.blue}>🃟</IconBtn></div>))}</div>
 <div style={oCard}><div style={{fontWeight:700,color:OC.gold,marginBottom:8}}>{TL.stap3}</div><div style={{display:"grid",gridTemplateColumns:"1fr 40px 40px",gap:8,marginBottom:8}}><span style={{fontSize:"0.62rem",color:OC.muted}}>Speler</span><span style={{fontSize:"0.62rem",color:OC.muted,textAlign:"center"}}>Chuft</span><span style={{fontSize:"0.62rem",color:OC.muted,textAlign:"center"}}>+Joker</span></div>{players.map((name,i)=>(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 40px 40px",gap:8,marginBottom:10,alignItems:"center"}}><div style={{fontSize:"0.9rem",fontWeight:600,color:chufts[i].chuft?OC.purple:OC.text}}>{name}{chufts[i].chuft&&<span style={{fontSize:"0.65rem",color:OC.purple,marginLeft:6}}>{chufts[i].chuftJoker?"-1000":"-500"}</span>}</div><IconBtn small onTap={()=>toggleChuft(i,'chuft')} active={chufts[i].chuft} color={OC.purple}>🀄</IconBtn><IconBtn small onTap={()=>toggleChuft(i,'chuftJoker')} active={chufts[i].chuftJoker} color={OC.purple} disabled={!chufts[i].chuft}>🃟</IconBtn></div>))}{anyChuft&&<div style={{fontSize:"0.72rem",color:OC.purple,padding:"8px 12px",background:"rgba(160,106,232,0.1)",borderRadius:8}}>⚠️ Chuft actief — alle verliezers betalen dubbel!</div>}</div>
 <div style={oCard}><div style={{fontWeight:700,color:OC.gold,marginBottom:8}}>{TL.stap4}</div>{players.map((name,i)=>(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 40px",gap:8,marginBottom:10,alignItems:"center"}}><div style={{fontSize:"0.9rem",fontWeight:600,color:draait[i]?OC.orange:OC.text}}>{name}{draait[i]&&<span style={{fontSize:"0.65rem",color:OC.orange,marginLeft:6}}>+500 💸</span>}</div><IconBtn small onTap={()=>toggleDraait(i)} active={draait[i]} color={OC.orange}>🔄</IconBtn></div>))}</div>
 <div style={oCard}><div style={{fontWeight:700,color:OC.gold,marginBottom:8}}>{TL.stap5}</div>
 <div style={{display:"grid",gridTemplateColumns:"1fr 76px 48px 48px",gap:6,marginBottom:8}}>{["Speler","Punten","🏆","🃟"].map((l,i)=>(<span key={i} style={{fontSize:"0.62rem",color:OC.muted,textAlign:i>0?"center":"left"}}>{l}</span>))}</div>
-{players.map((name,i)=>{const isChuft=chufts[i].chuft,isDraait=draait[i],disabled=isChuft||isDraait;return(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 76px 48px 48px",gap:6,marginBottom:10,alignItems:"center"}}><div style={{fontSize:"0.9rem",fontWeight:600}}>{name}</div><input type="number" inputMode="numeric" placeholder="0" min="0" value={(winner===i||disabled)?"":pts[i]} disabled={winner===i||disabled} onChange={e=>setPt(i,e.target.value)} style={{background:"transparent",border:`2px solid ${winner===i||disabled?"transparent":"#2e2a45"}`,borderRadius:10,padding:"11px 4px",outline:"none",width:"100%",color:winner===i?OC.green:OC.text,fontSize:"1rem",fontWeight:700,textAlign:"center"}}/><IconBtn onTap={()=>!disabled&&(winner===i&&!jokerWin?window.triggerWinner(name,false):null,tapWinner(i))} active={winner===i} color={OC.green} disabled={disabled}>🏆</IconBtn><IconBtn onTap={()=>tapJokerWin(i)} active={winner===i&&jokerWin} color={OC.gold} disabled={winner!==i||disabled}>🃟</IconBtn></div>);})}
+{players.map((name,i)=>{const isChuft=chufts[i].chuft,isDraait=draait[i],disabled=isChuft||isDraait;return(<div key={i} style={{display:"grid",gridTemplateColumns:"1fr 76px 48px 48px",gap:6,marginBottom:10,alignItems:"center"}}><div style={{fontSize:"0.9rem",fontWeight:600}}>{name}</div><input type="number" inputMode="numeric" placeholder="0" min="0" value={(winner===i||disabled)?"":pts[i]} disabled={winner===i||disabled} onChange={e=>setPt(i,e.target.value)} style={{background:"transparent",border:`2px solid ${winner===i||disabled?"transparent":"#2e2a45"}`,borderRadius:10,padding:"11px 4px",outline:"none",width:"100%",color:winner===i?OC.green:OC.text,fontSize:"1rem",fontWeight:700,textAlign:"center"}}/><IconBtn onTap={()=>!disabled&&tapWinner(i)} active={winner===i} color={OC.green} disabled={disabled}>🏆</IconBtn><IconBtn onTap={()=>tapJokerWin(i)} active={winner===i&&jokerWin} color={OC.gold} disabled={winner!==i||disabled}>🃟</IconBtn></div>);})}
 {suit&&mult&&<div style={{fontSize:"0.75rem",color:OC.gold,marginBottom:12}}>{SUITS[suit].label} ×{mult}{anyChuft?" + chuft (×2)":""}</div>}
 <Btn onTap={saveRound} style={{background:OC.gold,color:OC.bg}}>{TL.rondeOpslaan}</Btn></div>
-{rounds.length>0&&(<div style={{...oCard,overflowX:"auto"}}><span style={oLbl}>{TL.geschiedenis}</span><table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.78rem"}}><thead><tr><th style={{textAlign:"left",padding:"6px 6px 10px",color:OC.muted,fontSize:"0.7rem"}}>{TL.ronde}</th>{players.map((n,i)=><th key={i} style={{textAlign:"center",padding:"6px",color:OC.muted,fontSize:"0.7rem"}}>{n}</th>)}</tr></thead><tbody>{rounds.map((r,ri)=>(<tr key={ri}><td style={{padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:OC.muted,fontSize:"0.68rem"}}>{SUITS[r.suit].e} R{ri+1}</td>{r.scores.map((s,i)=>{let label=s,color=OC.text,fw=400;if(r.draait&&r.draait[i]){label="🔄+500";color=OC.orange;fw=700;}else if(r.chufts&&r.chufts[i]&&r.chufts[i].chuftJoker){label="−1000";color=OC.purple;fw=700;}else if(r.chufts&&r.chufts[i]&&r.chufts[i].chuft){label="−500";color=OC.purple;fw=700;}else if(r.winner===i&&r.jokerWin){label="🃟−500";color=OC.gold;fw=700;}else if(r.winner===i){label="🏆−100";color=OC.green;fw=700;}return(<td key={i} style={{textAlign:"center",padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color,fontWeight:fw,fontSize:"0.75rem"}}>{label}</td>);})} </tr>))}</tbody><tfoot><tr><td style={{padding:"12px 6px 4px",color:OC.muted,fontSize:"0.7rem",borderTop:"2px solid rgba(232,184,109,0.25)"}}>{TL.totaal}</td>{totals.map((tt,i)=><td key={i} style={{textAlign:"center",padding:"12px 6px 4px",fontWeight:800,color:OC.gold,borderTop:"2px solid rgba(232,184,109,0.25)"}}>{tt}</td>)}</tr></tfoot></table></div>)}
+{rounds.length>0&&(<div style={{...oCard,overflowX:"auto"}}><span style={oLbl}>{TL.geschiedenis}</span><table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.78rem"}}><thead><tr><th style={{textAlign:"left",padding:"6px 6px 10px",color:OC.muted,fontSize:"0.7rem"}}>{TL.ronde}</th>{players.map((n,i)=><th key={i} style={{textAlign:"center",padding:"6px",color:OC.muted,fontSize:"0.7rem"}}>{n}</th>)}</tr></thead><tbody>{rounds.map((r,ri)=>(<tr key={ri}><td style={{padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:OC.muted,fontSize:"0.65rem"}}>{SUITS[r.suit].e} R{ri+1}<br/><span style={{color:OC.gold,fontSize:"0.6rem"}}>🎴{players[r.dealerIdx]}</span></td>{r.scores.map((s,i)=>{let label=s,color=OC.text,fw=400;if(r.draait&&r.draait[i]){label="🔄+500";color=OC.orange;fw=700;}else if(r.chufts&&r.chufts[i]&&r.chufts[i].chuftJoker){label="−1000";color=OC.purple;fw=700;}else if(r.chufts&&r.chufts[i]&&r.chufts[i].chuft){label="−500";color=OC.purple;fw=700;}else if(r.winner===i&&r.jokerWin){label="🃟−500";color=OC.gold;fw=700;}else if(r.winner===i){label="🏆−100";color=OC.green;fw=700;}return(<td key={i} style={{textAlign:"center",padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color,fontWeight:fw,fontSize:"0.75rem"}}>{label}</td>);})} </tr>))}</tbody><tfoot><tr><td style={{padding:"12px 6px 4px",color:OC.muted,fontSize:"0.7rem",borderTop:"2px solid rgba(232,184,109,0.25)"}}>{TL.totaal}</td>{totals.map((tt,i)=><td key={i} style={{textAlign:"center",padding:"12px 6px 4px",fontWeight:800,color:OC.gold,borderTop:"2px solid rgba(232,184,109,0.25)"}}>{tt}</td>)}</tr></tfoot></table></div>)}
 <Btn onTap={reset} style={{background:"transparent",color:OC.red,border:"2px solid rgba(201,106,106,0.3)",marginTop:8}}>{TL.nieuwSpel}</Btn>
 </div>);}
 // ── BATAK ──
@@ -365,34 +520,55 @@ const _bn=loadNames("batak");
 const [team1,setTeam1]=useState(_bn?_bn[0]:"Team 1");
 const [team2,setTeam2]=useState(_bn?_bn[1]:"Team 2");
 const [rounds,setRounds]=useState([]);
+const [dealer,setDealer]=useState(0);
 const [bod,setBod]=useState(7);
 const [bidTeam,setBidTeam]=useState(0);
 const [isKing,setIsKing]=useState(false);
 const [slagen1,setSlagen1]=useState("");
 const [slagen2,setSlagen2]=useState("");
+// For batak we track 4 individual players for dealing, but 2 teams for scoring
+const [playerNames,setPlayerNames]=useState(loadNames("batak_players")||["Speler 1","Speler 2","Speler 3","Speler 4"]);
+const nP=4;
 function rT(r,k){return r.reduce((s,x)=>{const v=x[k];if(v===999||v===-999)return s;return s+v;},0);}
 const rt1=rT(rounds,'score1'),rt2=rT(rounds,'score2');
 function resetRound(){setBod(7);setBidTeam(0);setIsKing(false);setSlagen1("");setSlagen2("");}
-function undoRound(){haptic("light");setRounds(r=>r.slice(0,-1));}
+function undoRound(){haptic("light");setRounds(r=>{const nr=r.slice(0,-1);if(nr.length<r.length)setDealer(d=>(d-1+nP)%nP);return nr;});}
 function saveRound(){
 if(!isKing){const s1=parseInt(slagen1),s2=parseInt(slagen2);if(isNaN(s1)||isNaN(s2)){alert("Vul de slagen in!");return;}if(s1+s2!==13){alert("Slagen moeten 13 zijn!");return;}}
 const s1=isKing?(bidTeam===0?13:0):parseInt(slagen1),s2=isKing?(bidTeam===1?13:0):parseInt(slagen2);
 const result=calcRound(bod,isKing,bidTeam,s1,s2);
 const bn=bidTeam===0?team1:team2,dn=bidTeam===0?team2:team1;
 setTimeout(()=>{if(result.event.type==='king')window.fx.king(bn);else if(result.event.type==='kingLose')window.fx.kingLose(bn);else if(result.event.type==='zero')window.fx.zero(dn);else if(result.event.type==='one')window.fx.one(dn);else if(result.event.type==='win')window.fx.win(bn);else if(result.event.type==='lose')window.fx.lose(bn,bod);},200);
-const nr=[...rounds,{bod,isKing,bidTeam,s1,s2,score1:result.score1,score2:result.score2,event:result.event}];
-setRounds(nr);resetRound();
+const nextDealer=(dealer+1)%nP;
+const nr=[...rounds,{bod,isKing,bidTeam,s1,s2,score1:result.score1,score2:result.score2,event:result.event,dealerIdx:dealer}];
+setRounds(nr);setDealer(nextDealer);resetRound();
 if(Math.abs(result.score1)===999||Math.abs(result.score2)===999){const isW=result.score1===999||result.score2===999;setScreen(isW?'kingWin':'kingLose');if(isW){setTimeout(()=>{spawnConfetti();spawnConfetti();},200);}return;}
 const nt1=nr.reduce((s,r)=>s+(r.score1===999||r.score1===-999?0:r.score1),0),nt2=nr.reduce((s,r)=>s+(r.score2===999||r.score2===-999?0:r.score2),0);
 if(nt1>=61||nt2>=61){const w=nt1>=61&&nt1>=nt2?team1:team2;recordWin('batak',w);recordGame('batak',[team1,team2]);setScreen("gameWin");setTimeout(()=>{window.fx.gameWin(w);haptic("success");spawnConfetti();spawnConfetti();},300);}
 }
-function reset(){setScreen("setup");setRounds([]);resetRound();}
+function reset(){setScreen("setup");setRounds([]);setDealer(0);resetRound();}
 const BB=<button onPointerDown={onBack} style={{background:"transparent",border:"none",color:BC.muted,fontSize:"0.85rem",padding:"0 0 16px",...TAP}}>{TL.terug}</button>;
-if(screen==="setup")return(<div style={{background:BC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:500,margin:"0 auto"}}>{BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:4}}><h1 style={{color:BC.blue,fontSize:"2rem",fontWeight:800}}>♠️ Batak</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={BC.blue}/></div><InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.batak}/><p style={{textAlign:"center",color:BC.muted,marginBottom:28}}>{TL.eersteOp61}</p><div style={bCard}><span style={bLbl}>✏️ {TL.namen}</span><div style={{display:"flex",gap:10,marginBottom:10,alignItems:"center"}}><input style={{flex:1,background:BC.input,border:"2px solid #2a3040",borderRadius:10,padding:"12px 14px",color:BC.text,fontSize:"1rem",fontWeight:600,outline:"none"}} value={team1} placeholder="Team 1" onChange={e=>setTeam1(e.target.value)}/></div><input style={{width:"100%",background:BC.input,border:"2px solid #2a3040",borderRadius:10,padding:"12px 14px",color:BC.text,fontSize:"1rem",fontWeight:600,outline:"none"}} value={team2} placeholder="Team 2" onChange={e=>setTeam2(e.target.value)}/></div><Btn onTap={()=>{saveNames("batak",[team1,team2]);setScreen("game");}} style={{background:BC.blue,color:BC.bg}}>{TL.spelStarten}</Btn></div>);
+const nextDealer=(dealer+1)%nP;
+
+if(screen==="setup")return(<div style={{background:BC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:500,margin:"0 auto"}}>{BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:4}}><h1 style={{color:BC.blue,fontSize:"2rem",fontWeight:800}}>♠️ Batak</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={BC.blue}/></div><InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.batak}/><p style={{textAlign:"center",color:BC.muted,marginBottom:28}}>{TL.eersteOp61}</p>
+<div style={bCard}><span style={bLbl}>✏️ Teams (voor punten)</span><input style={{width:"100%",background:BC.input,border:"2px solid #2a3040",borderRadius:10,padding:"12px 14px",color:BC.text,fontSize:"1rem",fontWeight:600,outline:"none",marginBottom:10}} value={team1} placeholder="Team 1" onChange={e=>setTeam1(e.target.value)}/><input style={{width:"100%",background:BC.input,border:"2px solid #2a3040",borderRadius:10,padding:"12px 14px",color:BC.text,fontSize:"1rem",fontWeight:600,outline:"none"}} value={team2} placeholder="Team 2" onChange={e=>setTeam2(e.target.value)}/></div>
+<div style={bCard}><span style={bLbl}>👥 Spelernamen (voor dealer)</span>{[0,1,2,3].map(i=>(<div key={i} style={{display:"flex",gap:10,marginBottom:10,alignItems:"center"}}><span style={{color:BC.muted,fontSize:"0.8rem",width:20,textAlign:"center"}}>{i+1}</span><input style={{flex:1,background:BC.input,border:"2px solid #2a3040",borderRadius:10,padding:"12px 14px",color:BC.text,fontSize:"1rem",fontWeight:600,outline:"none"}} value={playerNames[i]} onChange={e=>{const n=[...playerNames];n[i]=e.target.value;setPlayerNames(n);}}/></div>))}</div>
+<Btn onTap={()=>{saveNames("batak",[team1,team2]);saveNames("batak_players",playerNames);setScreen("dealing");}} style={{background:BC.blue,color:BC.bg}}>{TL.spelStarten}</Btn></div>);
+
+if(screen==="dealing")return(<DealerAnimation players={playerNames} color={BC.blue} onDone={w=>{setDealer(w);setScreen("game");}}/>);
+
 if(screen==="kingWin"||screen==="kingLose"){const lastR=rounds[rounds.length-1],isW=screen==="kingWin",kt=isW?(lastR.score1===999?team1:team2):(lastR.score1===-999?team1:team2);return(<div style={{background:BC.bg,minHeight:"100vh",padding:"60px 16px",maxWidth:500,margin:"0 auto",textAlign:"center"}}><div style={{fontSize:"4rem",marginBottom:16}}>{isW?"👑":"☠️"}</div><div style={{fontSize:"1.8rem",fontWeight:800,color:isW?BC.gold:BC.red,marginBottom:8}}>{isW?TL.kingGespeeld:TL.kingGefaald}</div><div style={{color:BC.muted,marginBottom:28}}>{isW?`${kt} ${TL.kingWinMsg}`:`${kt} ${TL.kingLoseMsg}`}</div><Btn onTap={reset} style={{background:isW?BC.gold:BC.red,color:BC.bg,marginBottom:12}}>🃏 Nieuw spel</Btn><Btn onTap={onBack} style={{background:"transparent",color:BC.muted,border:"2px solid #2a3040"}}>{TL.terug}</Btn></div>);}
 if(screen==="gameWin"){const winner=rt1>=61&&rt1>=rt2?team1:team2;return(<div style={{background:BC.bg,minHeight:"100vh",padding:"60px 16px",maxWidth:500,margin:"0 auto",textAlign:"center"}}><div style={{fontSize:"5rem",marginBottom:16,animation:"trophyPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards"}}>🏆</div><div style={{fontSize:"1.8rem",fontWeight:800,color:BC.gold,marginBottom:8,animation:"winnerGlow 2s ease-in-out infinite"}}>{winner} {TL.winnerWint}</div><div style={{color:BC.muted,marginBottom:24}}>{TL.eersteTeamOp61}</div><div style={{background:BC.surface,borderRadius:14,padding:16,marginBottom:28}}>{[team1,team2].map((t,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.05)"}}><span style={{fontWeight:600}}>{t}</span><span style={{fontWeight:800,color:BC.blue}}>{i===0?rt1:rt2}</span></div>))}</div><Btn onTap={reset} style={{background:BC.gold,color:BC.bg,marginBottom:12}}>🃏 Nieuw spel</Btn><Btn onTap={onBack} style={{background:"transparent",color:BC.muted,border:"2px solid #2a3040"}}>{TL.terug}</Btn></div>);}
-return(<div style={{background:BC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:540,margin:"0 auto"}}>{BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}><h1 style={{color:BC.blue,fontSize:"1.8rem",fontWeight:800}}>♠️ Batak</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={BC.blue}/></div><InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.batak}/><span style={bLbl}>{TL.stand61}</span><div style={{display:"flex",gap:10,marginBottom:24}}>{[team1,team2].map((t,i)=>{const score=i===0?rt1:rt2,other=i===0?rt2:rt1,lead=score>other,close=score>=50;return(<div key={i} style={{flex:1,background:BC.surface,borderRadius:14,padding:"14px 8px",textAlign:"center",border:`2px solid ${lead?BC.green:close?BC.gold:"transparent"}`}}><div style={{fontSize:"0.7rem",color:BC.muted,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t}</div><div style={{fontSize:"2rem",fontWeight:800,color:lead?BC.green:close?BC.gold:BC.text}}>{score}</div><div style={{fontSize:"0.58rem",color:BC.muted}}>{close?TL.bijna61:lead?TL.leidt:TL.punten}</div></div>);})}
-</div><div style={bCard}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div style={{fontWeight:700,color:BC.blue}}>{TL.ronde} {rounds.length+1}</div>{rounds.length>0&&<button onPointerDown={undoRound} style={{padding:"5px 12px",borderRadius:8,border:"1.5px solid rgba(201,106,106,0.4)",background:"transparent",color:BC.red,fontSize:"0.75rem",fontWeight:700,...TAP}}>{TL.ongedaan}</button>}</div>
+
+return(<div style={{background:BC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:540,margin:"0 auto"}}>{BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}><h1 style={{color:BC.blue,fontSize:"1.8rem",fontWeight:800}}>♠️ Batak</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={BC.blue}/></div><InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.batak}/>
+<div style={{display:"flex",gap:8,marginBottom:12,padding:"10px 14px",background:"rgba(100,160,255,0.08)",borderRadius:12,border:"1px solid rgba(100,160,255,0.2)",alignItems:"center"}}>
+  <span style={{fontSize:"1rem"}}>🎴</span>
+  <div style={{flex:1}}><span style={{fontSize:"0.72rem",color:BC.muted}}>Deelt nu: </span><span style={{fontWeight:800,color:BC.blue}}>{playerNames[dealer]}</span></div>
+  <div style={{fontSize:"0.65rem",color:BC.muted}}>Volgende: {playerNames[nextDealer]}</div>
+</div>
+<span style={bLbl}>{TL.stand61}</span><div style={{display:"flex",gap:10,marginBottom:20}}>{[team1,team2].map((t,i)=>{const score=i===0?rt1:rt2,other=i===0?rt2:rt1,lead=score>other,close=score>=50;return(<div key={i} style={{flex:1,background:BC.surface,borderRadius:14,padding:"14px 8px",textAlign:"center",border:`2px solid ${lead?BC.green:close?BC.gold:"transparent"}`}}><div style={{fontSize:"0.7rem",color:BC.muted,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t}</div><div style={{fontSize:"2rem",fontWeight:800,color:lead?BC.green:close?BC.gold:BC.text}}>{score}</div><div style={{fontSize:"0.58rem",color:BC.muted}}>{close?TL.bijna61:lead?TL.leidt:TL.punten}</div></div>);})}
+</div>
+<div style={bCard}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div style={{fontWeight:700,color:BC.blue}}>{TL.ronde} {rounds.length+1}</div>{rounds.length>0&&<button onPointerDown={undoRound} style={{padding:"5px 12px",borderRadius:8,border:"1.5px solid rgba(201,106,106,0.4)",background:"transparent",color:BC.red,fontSize:"0.75rem",fontWeight:700,...TAP}}>{TL.ongedaan}</button>}</div>
 <span style={bLbl}>{TL.wieBiedt}</span><div style={{display:"flex",gap:8,marginBottom:18}}><Pill active={bidTeam===0} onTap={()=>setBidTeam(0)} ac={BC.blue}>{team1}</Pill><Pill active={bidTeam===1} onTap={()=>setBidTeam(1)} ac={BC.blue}>{team2}</Pill></div>
 <span style={bLbl}>{TL.typeBod}</span><div style={{display:"flex",gap:8,marginBottom:18}}><Pill active={!isKing} onTap={()=>setIsKing(false)} ac={BC.blue}>{TL.normaalBod}</Pill><Pill active={isKing} onTap={()=>setIsKing(true)} ac={BC.gold}>👑 KING</Pill></div>
 {!isKing&&<><span style={bLbl}>{TL.aantalBod}: <strong style={{color:BC.blue}}>{bod}</strong></span><div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>{[7,8,9,10,11,12,13].map(n=>(<Pill key={n} active={bod===n} onTap={()=>setBod(n)} ac={BC.blue}>{n}</Pill>))}</div></>}
@@ -401,7 +577,7 @@ return(<div style={{background:BC.bg,minHeight:"100vh",padding:"24px 16px 80px",
 <div style={{fontSize:"0.72rem",color:BC.muted,textAlign:"center",marginBottom:16}}>{parseInt(slagen1)+parseInt(slagen2)===13?<span style={{color:BC.green}}>{TL.totaal13}</span>:`${TL.totaalX}: ${(parseInt(slagen1)||0)+(parseInt(slagen2)||0)} / 13`}</div>
 {slagen1!==""&&slagen2!==""&&(parseInt(slagen1)||0)+(parseInt(slagen2)||0)===13&&(()=>{const r=calcRound(bod,false,bidTeam,parseInt(slagen1),parseInt(slagen2));return(<div style={{padding:"12px 16px",background:"rgba(100,160,255,0.07)",borderRadius:12,border:"1.5px solid rgba(100,160,255,0.2)",marginBottom:16,fontSize:"0.82rem"}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{color:BC.muted}}>{team1}</span><span style={{fontWeight:800,color:r.score1<0?BC.red:BC.green}}>{r.score1>0?"+":""}{r.score1}</span></div><div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:BC.muted}}>{team2}</span><span style={{fontWeight:800,color:r.score2<0?BC.red:BC.green}}>{r.score2>0?"+":""}{r.score2}</span></div></div>);})()}</>}
 <Btn onTap={saveRound} style={{background:BC.blue,color:BC.bg}}>{TL.rondeOpslaan}</Btn></div>
-{rounds.length>0&&(<div style={{...bCard,overflowX:"auto"}}><span style={bLbl}>{TL.geschiedenis}</span><table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.8rem"}}><thead><tr><th style={{textAlign:"left",padding:"6px",color:BC.muted,fontSize:"0.7rem"}}>{TL.ronde}</th><th style={{textAlign:"center",padding:"6px",color:BC.muted,fontSize:"0.7rem"}}>{team1}</th><th style={{textAlign:"center",padding:"6px",color:BC.muted,fontSize:"0.7rem"}}>{team2}</th></tr></thead><tbody>{rounds.map((r,ri)=>{const l1=r.score1===999?"👑":r.score1===-999?"☠️":r.score1,l2=r.score2===999?"👑":r.score2===-999?"☠️":r.score2,c1=r.score1===999?BC.gold:r.score1===-999?BC.red:r.score1<0?BC.red:BC.green,c2=r.score2===999?BC.gold:r.score2===-999?BC.red:r.score2<0?BC.red:BC.green;return(<tr key={ri}><td style={{padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:BC.muted,fontSize:"0.68rem"}}>{r.isKing?"👑":""}R{ri+1}</td><td style={{textAlign:"center",padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:c1,fontWeight:700}}>{l1}</td><td style={{textAlign:"center",padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:c2,fontWeight:700}}>{l2}</td></tr>);})}</tbody><tfoot><tr><td style={{padding:"12px 6px 4px",color:BC.muted,fontSize:"0.7rem",borderTop:"2px solid rgba(100,160,255,0.25)"}}>{TL.totaal}</td><td style={{textAlign:"center",padding:"12px 6px 4px",fontWeight:800,color:BC.blue,borderTop:"2px solid rgba(100,160,255,0.25)"}}>{rt1}</td><td style={{textAlign:"center",padding:"12px 6px 4px",fontWeight:800,color:BC.blue,borderTop:"2px solid rgba(100,160,255,0.25)"}}>{rt2}</td></tr></tfoot></table></div>)}
+{rounds.length>0&&(<div style={{...bCard,overflowX:"auto"}}><span style={bLbl}>{TL.geschiedenis}</span><table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.8rem"}}><thead><tr><th style={{textAlign:"left",padding:"6px",color:BC.muted,fontSize:"0.7rem"}}>{TL.ronde}</th><th style={{textAlign:"center",padding:"6px",color:BC.muted,fontSize:"0.7rem"}}>{team1}</th><th style={{textAlign:"center",padding:"6px",color:BC.muted,fontSize:"0.7rem"}}>{team2}</th></tr></thead><tbody>{rounds.map((r,ri)=>{const l1=r.score1===999?"👑":r.score1===-999?"☠️":r.score1,l2=r.score2===999?"👑":r.score2===-999?"☠️":r.score2,c1=r.score1===999?BC.gold:r.score1===-999?BC.red:r.score1<0?BC.red:BC.green,c2=r.score2===999?BC.gold:r.score2===-999?BC.red:r.score2<0?BC.red:BC.green;return(<tr key={ri}><td style={{padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:BC.muted,fontSize:"0.65rem"}}>{r.isKing?"👑":""}R{ri+1}<br/><span style={{color:BC.blue,fontSize:"0.6rem"}}>🎴{playerNames[r.dealerIdx]}</span></td><td style={{textAlign:"center",padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:c1,fontWeight:700}}>{l1}</td><td style={{textAlign:"center",padding:"9px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:c2,fontWeight:700}}>{l2}</td></tr>);})}</tbody><tfoot><tr><td style={{padding:"12px 6px 4px",color:BC.muted,fontSize:"0.7rem",borderTop:"2px solid rgba(100,160,255,0.25)"}}>{TL.totaal}</td><td style={{textAlign:"center",padding:"12px 6px 4px",fontWeight:800,color:BC.blue,borderTop:"2px solid rgba(100,160,255,0.25)"}}>{rt1}</td><td style={{textAlign:"center",padding:"12px 6px 4px",fontWeight:800,color:BC.blue,borderTop:"2px solid rgba(100,160,255,0.25)"}}>{rt2}</td></tr></tfoot></table></div>)}
 <Btn onTap={reset} style={{background:"transparent",color:BC.red,border:"2px solid rgba(201,106,106,0.3)",marginTop:8}}>{TL.nieuwSpel}</Btn></div>);}
 // ── PISHTI ──
 const PC={bg:"#0d160f",surface:"#112014",input:"#080e09",green:"#7ec96a",red:"#c96a6a",gold:"#e8b86d",muted:"#4a6a4a",text:"#e8f5e8"};
@@ -414,7 +590,10 @@ const [infoOpen,setInfoOpen]=useState(false);
 const _pn=loadNames("pishti");
 const [name1,setName1]=useState(_pn?_pn[0]:"Team 1");
 const [name2,setName2]=useState(_pn?_pn[1]:"Team 2");
+const [playerNames,setPlayerNames]=useState(loadNames("pishti_players")||["Speler 1","Speler 2","Speler 3","Speler 4"]);
+const [nP,setNP]=useState(2);
 const [rounds,setRounds]=useState([]);
+const [dealer,setDealer]=useState(0);
 const [stdPts1,setStdPts1]=useState("");
 const [stdPts2,setStdPts2]=useState("");
 const [pishti1,setPishti1]=useState(0);
@@ -424,42 +603,58 @@ const [boerPishti2,setBoerPishti2]=useState(0);
 const total1=rounds.reduce((s,r)=>s+r.score1,0),total2=rounds.reduce((s,r)=>s+r.score2,0);
 function calcScores(){const raw1=parseInt(stdPts1)||0,raw2=parseInt(stdPts2)||0;const vp1=pishti1*10+boerPishti1*20,vp2=pishti2*10+boerPishti2*20;const pen1=(raw1===0&&vp1===0&&(raw2>0||vp2>0))?-16:0,pen2=(raw2===0&&vp2===0&&(raw1>0||vp1>0))?-16:0;return{s1:raw1+vp1+pen1,s2:raw2+vp2+pen2,pen1,pen2,vp1,vp2};}
 function resetRound(){setStdPts1("");setStdPts2("");setPishti1(0);setPishti2(0);setBoerPishti1(0);setBoerPishti2(0);}
-function undoRound(){haptic("light");setRounds(r=>r.slice(0,-1));}
+function undoRound(){haptic("light");setRounds(r=>{const nr=r.slice(0,-1);if(nr.length<r.length)setDealer(d=>(d-1+nP)%nP);return nr;});}
 function saveRound(){
 const{s1,s2,pen1,pen2,vp1,vp2}=calcScores();
 if(boerPishti1>0)setTimeout(()=>window.fx.pishti(name1,true),200);else if(pishti1>0)setTimeout(()=>window.fx.pishti(name1,false),200);
 if(boerPishti2>0)setTimeout(()=>window.fx.pishti(name2,true),400);else if(pishti2>0)setTimeout(()=>window.fx.pishti(name2,false),400);
 if(pen1<0)setTimeout(()=>window.fx.penalty(name1),600);if(pen2<0)setTimeout(()=>window.fx.penalty(name2),600);
-const nr=[...rounds,{score1:s1,score2:s2,stdPts1:parseInt(stdPts1)||0,stdPts2:parseInt(stdPts2)||0,pishti1,pishti2,boerPishti1,boerPishti2,pen1,pen2,vp1,vp2}];
-setRounds(nr);resetRound();
+const nextDealer=(dealer+1)%nP;
+const nr=[...rounds,{score1:s1,score2:s2,stdPts1:parseInt(stdPts1)||0,stdPts2:parseInt(stdPts2)||0,pishti1,pishti2,boerPishti1,boerPishti2,pen1,pen2,vp1,vp2,dealerIdx:dealer}];
+setRounds(nr);setDealer(nextDealer);resetRound();
 if(vp1>=50||vp2>=50){const winner=vp1>=50&&vp1>=vp2?name1:name2;recordWin('pishti',winner);recordGame('pishti',[name1,name2]);setScreen("pishtiWin");setTimeout(()=>{window.fx.pishtiWin(winner);spawnConfetti();spawnConfetti();},300);return;}
 const nt1=nr.reduce((s,r)=>s+r.score1,0),nt2=nr.reduce((s,r)=>s+r.score2,0);
 if(nt1>=151||nt2>=151){if(nt1===nt2){alert("Gelijkspel op 151! Volgende ronde beslissend.");}else{const winner=nt1>nt2?name1:name2;recordWin('pishti',winner);recordGame('pishti',[name1,name2]);setScreen("gameWin");setTimeout(()=>{window.fx.pishtiWin(winner);spawnConfetti();spawnConfetti();},300);}}
 }
-function reset(){setScreen("setup");setRounds([]);resetRound();}
+function reset(){setScreen("setup");setRounds([]);setDealer(0);resetRound();}
 function Counter({value,onChange,max=10,color=PC.green}){return(<div style={{display:"flex",alignItems:"center",gap:8}}><button onPointerDown={()=>onChange(Math.max(0,value-1))} style={{width:36,height:36,borderRadius:10,border:"2px solid #2a4030",background:"transparent",color:PC.text,fontSize:"1.2rem",...TAP}}>−</button><div style={{width:32,textAlign:"center",fontSize:"1.2rem",fontWeight:800,color}}>{value}</div><button onPointerDown={()=>onChange(Math.min(max,value+1))} style={{width:36,height:36,borderRadius:10,border:"2px solid #2a4030",background:"transparent",color:PC.text,fontSize:"1.2rem",...TAP}}>+</button></div>);}
 const BB=<button onPointerDown={onBack} style={{background:"transparent",border:"none",color:PC.muted,fontSize:"0.85rem",padding:"0 0 16px",...TAP}}>{TL.terug}</button>;
-if(screen==="setup")return(<div style={{background:PC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:500,margin:"0 auto"}}>{BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:4}}><h1 style={{color:PC.green,fontSize:"2rem",fontWeight:800}}>🃏 Pishti</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={PC.green}/></div><InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.pishti}/><p style={{textAlign:"center",color:PC.muted,marginBottom:28}}>{TL.eersteOp151}</p><div style={pCard}><span style={pLbl}>✏️ {TL.teamnamen}</span><input style={{width:"100%",background:PC.input,border:"2px solid #2a4030",borderRadius:10,padding:"12px 14px",color:PC.text,fontSize:"1rem",fontWeight:600,outline:"none",marginBottom:10}} value={name1} placeholder="Team 1" onChange={e=>setName1(e.target.value)}/><input style={{width:"100%",background:PC.input,border:"2px solid #2a4030",borderRadius:10,padding:"12px 14px",color:PC.text,fontSize:"1rem",fontWeight:600,outline:"none"}} value={name2} placeholder="Team 2" onChange={e=>setName2(e.target.value)}/></div><Btn onTap={()=>{saveNames("pishti",[name1,name2]);window.triggerRandom();setScreen("game");}} style={{background:PC.green,color:"#0d0d14"}}>{TL.spelStarten}</Btn></div>);
+const nextDealer=(dealer+1)%nP;
+const dealerNames=nP===2?[name1,name2]:playerNames.slice(0,nP);
+
+if(screen==="setup")return(<div style={{background:PC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:500,margin:"0 auto"}}>{BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:4}}><h1 style={{color:PC.green,fontSize:"2rem",fontWeight:800}}>🃏 Pishti</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={PC.green}/></div><InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.pishti}/><p style={{textAlign:"center",color:PC.muted,marginBottom:28}}>{TL.eersteOp151}</p>
+<div style={pCard}><span style={pLbl}>👥 Modus</span><div style={{display:"flex",gap:8,marginBottom:16}}><Pill active={nP===2} onTap={()=>setNP(2)} ac={PC.green}>1 vs 1</Pill><Pill active={nP===4} onTap={()=>setNP(4)} ac={PC.green}>2 vs 2</Pill></div>
+<span style={pLbl}>✏️ {nP===2?"Spelersnamen":"Teamnamen"}</span>
+<input style={{width:"100%",background:PC.input,border:"2px solid #2a4030",borderRadius:10,padding:"12px 14px",color:PC.text,fontSize:"1rem",fontWeight:600,outline:"none",marginBottom:10}} value={name1} placeholder={nP===2?"Speler 1":"Team 1"} onChange={e=>setName1(e.target.value)}/>
+<input style={{width:"100%",background:PC.input,border:"2px solid #2a4030",borderRadius:10,padding:"12px 14px",color:PC.text,fontSize:"1rem",fontWeight:600,outline:"none"}} value={name2} placeholder={nP===2?"Speler 2":"Team 2"} onChange={e=>setName2(e.target.value)}/>
+</div>
+{nP===4&&<div style={pCard}><span style={pLbl}>👥 Spelernamen (voor dealer)</span>{[0,1,2,3].map(i=>(<div key={i} style={{display:"flex",gap:10,marginBottom:10,alignItems:"center"}}><span style={{color:PC.muted,fontSize:"0.8rem",width:20,textAlign:"center"}}>{i+1}</span><input style={{flex:1,background:PC.input,border:"2px solid #2a4030",borderRadius:10,padding:"12px 14px",color:PC.text,fontSize:"1rem",fontWeight:600,outline:"none"}} value={playerNames[i]} onChange={e=>{const n=[...playerNames];n[i]=e.target.value;setPlayerNames(n);}}/></div>))}</div>}
+<Btn onTap={()=>{saveNames("pishti",[name1,name2]);if(nP===4)saveNames("pishti_players",playerNames);setScreen("dealing");}} style={{background:PC.green,color:"#0d0d14"}}>{TL.spelStarten}</Btn></div>);
+
+if(screen==="dealing")return(<DealerAnimation players={dealerNames} color={PC.green} onDone={w=>{setDealer(w);setScreen("game");}}/>);
+
 if(screen==="pishtiWin"||screen==="gameWin"){const lastR=rounds[rounds.length-1];const winner=screen==="pishtiWin"?(lastR.vp1>=50&&lastR.vp1>=lastR.vp2?name1:name2):(total1>total2?name1:name2);return(<div style={{background:PC.bg,minHeight:"100vh",padding:"60px 16px",maxWidth:500,margin:"0 auto",textAlign:"center"}}><div style={{fontSize:"5rem",marginBottom:16,animation:"trophyPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards"}}>🏆</div><div style={{fontSize:"1.8rem",fontWeight:800,color:PC.green,marginBottom:8,animation:"winnerGlow 2s ease-in-out infinite"}}>{winner} {TL.winnerWint}</div><div style={{color:PC.muted,marginBottom:8}}>{screen==="pishtiWin"?TL.pishtiWinMsg:TL.eersteOp151win}</div><div style={{color:PC.muted,marginBottom:24,fontSize:"0.85rem"}}>{name1}: {total1} · {name2}: {total2}</div><Btn onTap={reset} style={{background:PC.green,color:"#0d0d14",marginBottom:12}}>🃏 Nieuw spel</Btn><Btn onTap={onBack} style={{background:"transparent",color:PC.muted,border:"2px solid #2a4030"}}>{TL.terug}</Btn></div>);}
+
 const{s1,s2,pen1,pen2,vp1,vp2}=calcScores();
 return(<div style={{background:PC.bg,minHeight:"100vh",padding:"24px 16px 80px",maxWidth:540,margin:"0 auto"}}>
 {BB}<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}><h1 style={{color:PC.green,fontSize:"1.8rem",fontWeight:800}}>🃏 Pishti</h1><InfoBtn onTap={()=>setInfoOpen(true)} color={PC.green}/></div>
 <InfoModal open={infoOpen} onClose={()=>setInfoOpen(false)} {...INFO.pishti}/>
-<div style={{display:"flex",gap:10,marginBottom:24}}>{[[name1,total1],[name2,total2]].map(([n,t],i)=>{const other=i===0?total2:total1,lead=t>other,close=t>=130;return(<div key={i} style={{flex:1,background:PC.surface,borderRadius:14,padding:"14px 8px",textAlign:"center",border:`2px solid ${lead?PC.green:close?PC.gold:"transparent"}`}}><div style={{fontSize:"0.7rem",color:PC.muted,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n}</div><div style={{fontSize:"2rem",fontWeight:800,color:lead?PC.green:close?PC.gold:PC.text}}>{t}</div><div style={{fontSize:"0.58rem",color:PC.muted}}>{close?"⚠️ bijna 151":lead?TL.leidt:TL.punten}</div></div>);})}
+<div style={{display:"flex",gap:8,marginBottom:12,padding:"10px 14px",background:"rgba(126,201,106,0.08)",borderRadius:12,border:"1px solid rgba(126,201,106,0.2)",alignItems:"center"}}>
+  <span style={{fontSize:"1rem"}}>🎴</span>
+  <div style={{flex:1}}><span style={{fontSize:"0.72rem",color:PC.muted}}>Deelt nu: </span><span style={{fontWeight:800,color:PC.green}}>{dealerNames[dealer]}</span></div>
+  <div style={{fontSize:"0.65rem",color:PC.muted}}>Volgende: {dealerNames[nextDealer]}</div>
 </div>
-<div style={pCard}>
-<div style={{fontWeight:700,color:PC.green,marginBottom:16}}>{TL.ronde} {rounds.length+1} — {TL.standaardPunten}</div>
+<div style={{display:"flex",gap:10,marginBottom:20}}>{[[name1,total1],[name2,total2]].map(([n,t],i)=>{const other=i===0?total2:total1,lead=t>other,close=t>=130;return(<div key={i} style={{flex:1,background:PC.surface,borderRadius:14,padding:"14px 8px",textAlign:"center",border:`2px solid ${lead?PC.green:close?PC.gold:"transparent"}`}}><div style={{fontSize:"0.7rem",color:PC.muted,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n}</div><div style={{fontSize:"2rem",fontWeight:800,color:lead?PC.green:close?PC.gold:PC.text}}>{t}</div><div style={{fontSize:"0.58rem",color:PC.muted}}>{close?"⚠️ bijna 151":lead?TL.leidt:TL.punten}</div></div>);})}
+</div>
+<div style={pCard}><div style={{fontWeight:700,color:PC.green,marginBottom:16}}>{TL.ronde} {rounds.length+1} — {TL.standaardPunten}</div>
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:8}}>
 {[[name1,stdPts1,setStdPts1,pen1],[name2,stdPts2,setStdPts2,pen2]].map(([n,v,set,pen],i)=>(<div key={i}><div style={{fontSize:"0.75rem",color:PC.muted,marginBottom:6,textAlign:"center"}}>{n}</div><input type="number" inputMode="numeric" placeholder="0" min="0" value={v} onChange={e=>set(e.target.value)} style={{width:"100%",background:PC.input,border:`2px solid ${pen<0?PC.red:"#2a4030"}`,borderRadius:10,padding:"14px 8px",color:pen<0?PC.red:PC.text,fontSize:"1.4rem",fontWeight:800,textAlign:"center",outline:"none"}}/>{pen<0&&<div style={{fontSize:"0.7rem",color:PC.red,textAlign:"center",marginTop:4}}>⚠️ straf −16</div>}</div>))}
 </div>
 <div style={{padding:"10px 14px",background:"rgba(126,201,106,0.07)",borderRadius:10,fontSize:"0.85rem",marginTop:8}}>
 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{color:PC.muted}}>{name1}</span><span style={{fontWeight:800,color:s1<0?PC.red:PC.green}}>{s1>0?"+":""}{s1} → {total1+s1}</span></div>
 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:PC.muted}}>{name2}</span><span style={{fontWeight:800,color:s2<0?PC.red:PC.green}}>{s2>0?"+":""}{s2} → {total2+s2}</span></div>
-</div>
-</div>
-<div style={pCard}>
-<div style={{fontWeight:700,color:PC.green,marginBottom:4}}>{TL.pishtiPunten}</div>
-<div style={{fontSize:"0.75rem",color:PC.muted,marginBottom:16}}>{TL.pishti50}</div>
+</div></div>
+<div style={pCard}><div style={{fontWeight:700,color:PC.green,marginBottom:4}}>{TL.pishtiPunten}</div><div style={{fontSize:"0.75rem",color:PC.muted,marginBottom:16}}>{TL.pishti50}</div>
 <span style={pLbl}>🔥 Pishti (+10)</span>
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
 <div><div style={{fontSize:"0.75rem",color:PC.muted,marginBottom:6,textAlign:"center"}}>{name1}</div><div style={{display:"flex",justifyContent:"center"}}><Counter value={pishti1} onChange={v=>{haptic("light");setPishti1(v);if(v>0)window.fx.pishti(name1,false);}}/></div></div>
@@ -470,11 +665,11 @@ return(<div style={{background:PC.bg,minHeight:"100vh",padding:"24px 16px 80px",
 <div><div style={{fontSize:"0.75rem",color:PC.muted,marginBottom:6,textAlign:"center"}}>{name1}</div><div style={{display:"flex",justifyContent:"center"}}><Counter value={boerPishti1} onChange={v=>{setBoerPishti1(v);if(v>0)window.fx.pishti(name1,true);}} max={4} color={PC.gold}/></div></div>
 <div><div style={{fontSize:"0.75rem",color:PC.muted,marginBottom:6,textAlign:"center"}}>{name2}</div><div style={{display:"flex",justifyContent:"center"}}><Counter value={boerPishti2} onChange={v=>{setBoerPishti2(v);if(v>0)window.fx.pishti(name2,true);}} max={4} color={PC.gold}/></div></div>
 </div>
-{(vp1>0||vp2>0)&&<div style={{marginTop:12,padding:"8px 12px",background:"rgba(126,201,106,0.08)",borderRadius:8,fontSize:"0.75rem",color:PC.green}}>{TL.pishtiPunten}: {name1} +{vp1} · {name2} +{vp2}{(vp1>=50||vp2>=50)&&<span style={{color:PC.gold,marginLeft:8,fontWeight:800}}>⚡ DIRECT WINNEN!</span>}</div>}
+{(vp1>0||vp2>0)&&<div style={{marginTop:12,padding:"8px 12px",background:"rgba(126,201,106,0.08)",borderRadius:8,fontSize:"0.75rem",color:PC.green}}>{name1} +{vp1} · {name2} +{vp2}{(vp1>=50||vp2>=50)&&<span style={{color:PC.gold,marginLeft:8,fontWeight:800}}>⚡ DIRECT WINNEN!</span>}</div>}
 </div>
 {rounds.length>0&&<button onPointerDown={undoRound} style={{padding:"4px 10px",borderRadius:8,border:"1.5px solid rgba(201,106,106,0.4)",background:"transparent",color:PC.red,fontSize:"0.72rem",fontWeight:700,...TAP,marginBottom:8}}>{TL.ongedaan}</button>}
 <Btn onTap={saveRound} style={{background:PC.green,color:"#0d0d14"}}>{TL.rondeOpslaan}</Btn>
-{rounds.length>0&&(<div style={{...pCard,overflowX:"auto",marginTop:16}}><span style={pLbl}>{TL.geschiedenis}</span><table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.78rem"}}><thead><tr><th style={{textAlign:"left",padding:"4px 6px 8px",color:PC.muted,fontSize:"0.68rem"}}>{TL.ronde}</th><th style={{textAlign:"center",padding:"4px 6px 8px",color:PC.muted,fontSize:"0.68rem"}}>{name1}</th><th style={{textAlign:"center",padding:"4px 6px 8px",color:PC.muted,fontSize:"0.68rem"}}>{name2}</th></tr></thead><tbody>{rounds.map((r,ri)=>(<tr key={ri}><td style={{padding:"8px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:PC.muted,fontSize:"0.68rem"}}>R{ri+1}</td><td style={{textAlign:"center",padding:"8px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:r.score1<0?PC.red:PC.green,fontWeight:700}}>{r.score1>0?"+":""}{r.score1}</td><td style={{textAlign:"center",padding:"8px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:r.score2<0?PC.red:PC.green,fontWeight:700}}>{r.score2>0?"+":""}{r.score2}</td></tr>))}</tbody><tfoot><tr><td style={{padding:"10px 6px 4px",color:PC.muted,fontSize:"0.68rem",borderTop:"2px solid rgba(126,201,106,0.25)"}}>{TL.totaal}</td><td style={{textAlign:"center",padding:"10px 6px 4px",fontWeight:800,color:PC.green,borderTop:"2px solid rgba(126,201,106,0.25)"}}>{total1}</td><td style={{textAlign:"center",padding:"10px 6px 4px",fontWeight:800,color:PC.green,borderTop:"2px solid rgba(126,201,106,0.25)"}}>{total2}</td></tr></tfoot></table></div>)}
+{rounds.length>0&&(<div style={{...pCard,overflowX:"auto",marginTop:16}}><span style={pLbl}>{TL.geschiedenis}</span><table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.78rem"}}><thead><tr><th style={{textAlign:"left",padding:"4px 6px 8px",color:PC.muted,fontSize:"0.68rem"}}>{TL.ronde}</th><th style={{textAlign:"center",padding:"4px 6px 8px",color:PC.muted,fontSize:"0.68rem"}}>{name1}</th><th style={{textAlign:"center",padding:"4px 6px 8px",color:PC.muted,fontSize:"0.68rem"}}>{name2}</th></tr></thead><tbody>{rounds.map((r,ri)=>(<tr key={ri}><td style={{padding:"8px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:PC.muted,fontSize:"0.65rem"}}>R{ri+1}<br/><span style={{color:PC.green,fontSize:"0.6rem"}}>🎴{dealerNames[r.dealerIdx]}</span></td><td style={{textAlign:"center",padding:"8px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:r.score1<0?PC.red:PC.green,fontWeight:700}}>{r.score1>0?"+":""}{r.score1}</td><td style={{textAlign:"center",padding:"8px 6px",borderTop:"1px solid rgba(255,255,255,0.05)",color:r.score2<0?PC.red:PC.green,fontWeight:700}}>{r.score2>0?"+":""}{r.score2}</td></tr>))}</tbody><tfoot><tr><td style={{padding:"10px 6px 4px",color:PC.muted,fontSize:"0.68rem",borderTop:"2px solid rgba(126,201,106,0.25)"}}>{TL.totaal}</td><td style={{textAlign:"center",padding:"10px 6px 4px",fontWeight:800,color:PC.green,borderTop:"2px solid rgba(126,201,106,0.25)"}}>{total1}</td><td style={{textAlign:"center",padding:"10px 6px 4px",fontWeight:800,color:PC.green,borderTop:"2px solid rgba(126,201,106,0.25)"}}>{total2}</td></tr></tfoot></table></div>)}
 <Btn onTap={reset} style={{background:"transparent",color:PC.red,border:"2px solid rgba(201,106,106,0.3)",marginTop:8}}>{TL.nieuwSpel}</Btn>
 </div>);}
 // ── TRIX ──
