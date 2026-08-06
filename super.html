@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#07070f">
+<title>Super</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#07070f;color:#ede8f5;font-family:system-ui,-apple-system,sans-serif;overscroll-behavior:none}
+button,input{font-family:inherit;-webkit-appearance:none}
+@keyframes popIn{0%{transform:scale(0.5);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1);opacity:1}}
+.pop{animation:popIn 0.25s ease-out}
+</style>
+</head>
+<body>
+<div id="root" style="width:100%;min-height:100vh;"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="super-engine.js"></script>
+<script type="text/babel">
+const{useState,useEffect,useRef,useMemo}=React;
+const TAP={touchAction:"manipulation",WebkitTapHighlightColor:"transparent",cursor:"pointer"};
+
+// ── Supabase config ──
+// The publishable/anon key is safe to expose in client code — all real
+// authority (dealing, validation, scoring) lives server-side in Edge
+// Functions using the secret key, which never appears here.
+const SUPABASE_URL = "https://kliqbeuxkodghjxdaijz.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_j6PM9YHhGeUA5XDeO9fMFQ_SCuRd4oi";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const SUIT_SYMBOL = { C:'♣', D:'♦', H:'♥', S:'♠' };
+const SUIT_COLOR = { C:'#7ec96a', D:'#e8b86d', H:'#ff7aaa', S:'#6aaaff' };
+const SC = { bg:'#07070f', surface:'rgba(255,255,255,0.05)', gold:'#e8b86d', green:'#7ec96a', red:'#c96a6a', blue:'#6aaaff', muted:'#8a8aaa', text:'#ede8f5' };
+
+function cardLabel(card){
+  if(card.suit==='J') return '🃟';
+  return `${card.rank}${SUIT_SYMBOL[card.suit]}`;
+}
+function cardColor(card){
+  if(card.suit==='J') return '#a06ae8';
+  return SUIT_COLOR[card.suit];
+}
+function sortHand(cards){
+  const rankOrder=[2,3,4,5,6,7,8,9,10,'J','Q','K','A'];
+  const suitOrder=['C','D','H','S','J'];
+  return [...cards].sort((a,b)=>{
+    const sa=suitOrder.indexOf(a.suit), sb2=suitOrder.indexOf(b.suit);
+    if(sa!==sb2) return sa-sb2;
+    return rankOrder.indexOf(a.rank)-rankOrder.indexOf(b.rank);
+  });
+}
+
+function loadDevice(){
+  try{ return JSON.parse(localStorage.getItem('super_device')||'null'); }catch(e){ return null; }
+}
+function saveDevice(v){ try{ localStorage.setItem('super_device', JSON.stringify(v)); }catch(e){} }
+
+function Card({card, selected, onTap, small}){
+  const col=cardColor(card);
+  return (
+    <div onPointerDown={onTap} style={{...TAP,
+      width:small?38:52, height:small?54:74, borderRadius:8,
+      background:selected?col:'#161622', border:`2px solid ${selected?col:'rgba(255,255,255,0.12)'}`,
+      display:'flex',alignItems:'center',justifyContent:'center',
+      color:selected?'#0a0a12':col, fontWeight:800, fontSize:small?'0.75rem':'0.95rem',
+      flexShrink:0, transition:'all 0.12s', boxShadow:selected?`0 0 12px ${col}66`:'none',
+      transform:selected?'translateY(-6px)':'none'
+    }}>{cardLabel(card)}</div>
+  );
+}
+
+function Button({children, onTap, color=SC.gold, disabled, style}){
+  return (
+    <button onPointerDown={disabled?undefined:onTap} disabled={disabled} style={{...TAP,
+      padding:'12px 20px', borderRadius:12, border:'none',
+      background:disabled?'rgba(255,255,255,0.08)':color, color:disabled?SC.muted:'#0a0a12',
+      fontWeight:800, fontSize:'0.9rem', opacity:disabled?0.5:1, ...style
+    }}>{children}</button>
+  );
+}
+
+// ── Home: create or join ──
+function Home({onEntered}){
+  const [mode,setMode]=useState(null); // 'create' | 'join'
+  const [name,setName]=useState('');
+  const [code,setCode]=useState('');
+  const [roundTarget,setRoundTarget]=useState(8);
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState('');
+
+  async function createRoom(){
+    if(!name.trim()) return setErr('Vul je naam in');
+    setBusy(true); setErr('');
+    const { data, error } = await sb.functions.invoke('create-room', { body:{ displayName:name.trim(), roundTarget:Number(roundTarget)||8 } });
+    setBusy(false);
+    if(error||data.error) return setErr((data&&data.error)||error.message);
+    saveDevice({ roomId:data.room.id, playerId:data.player.id });
+    onEntered(data.room.id, data.player.id);
+  }
+  async function joinRoom(){
+    if(!name.trim()) return setErr('Vul je naam in');
+    if(!code.trim()) return setErr('Vul de room-code in');
+    setBusy(true); setErr('');
+    const { data, error } = await sb.functions.invoke('join-room', { body:{ code:code.trim().toUpperCase(), displayName:name.trim() } });
+    setBusy(false);
+    if(error||data.error) return setErr((data&&data.error)||error.message);
+    saveDevice({ roomId:data.room.id, playerId:data.player.id });
+    onEntered(data.room.id, data.player.id);
+  }
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,gap:16}}>
+      <div style={{fontSize:'2.2rem'}}>🃏</div>
+      <h1 style={{color:SC.gold,fontSize:'1.6rem',fontWeight:800}}>Super</h1>
+      <div style={{color:SC.muted,fontSize:'0.85rem',textAlign:'center'}}>2 decks · 2 jokers · live multiplayer</div>
+
+      {!mode && (
+        <div style={{display:'flex',gap:12,marginTop:12}}>
+          <Button onTap={()=>setMode('create')}>Room maken</Button>
+          <Button color={SC.blue} onTap={()=>setMode('join')}>Room joinen</Button>
+        </div>
+      )}
+
+      {mode && (
+        <div className="pop" style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:10,marginTop:8}}>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Jouw naam"
+            style={{padding:'12px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.15)',background:SC.surface,color:SC.text,fontSize:'1rem'}} />
+          {mode==='join' && (
+            <input value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="ROOM CODE"
+              style={{padding:'12px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.15)',background:SC.surface,color:SC.text,fontSize:'1rem',letterSpacing:2,textTransform:'uppercase'}} />
+          )}
+          {mode==='create' && (
+            <div style={{display:'flex',alignItems:'center',gap:10,color:SC.muted,fontSize:'0.85rem'}}>
+              Aantal rondes:
+              <input type="number" value={roundTarget} onChange={e=>setRoundTarget(e.target.value)} min={1}
+                style={{width:70,padding:'8px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.15)',background:SC.surface,color:SC.text}} />
+            </div>
+          )}
+          {err && <div style={{color:SC.red,fontSize:'0.8rem'}}>{err}</div>}
+          <Button disabled={busy} onTap={mode==='create'?createRoom:joinRoom}>{busy?'Bezig…':mode==='create'?'Maak room':'Join room'}</Button>
+          <div onPointerDown={()=>setMode(null)} style={{...TAP,textAlign:'center',color:SC.muted,fontSize:'0.8rem'}}>← Terug</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Lobby: waiting room ──
+function Lobby({roomId, playerId, onStarted}){
+  const [room,setRoom]=useState(null);
+  const [players,setPlayers]=useState([]);
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState('');
+
+  useEffect(()=>{
+    let mounted=true;
+    async function load(){
+      const { data:r } = await sb.from('rooms').select('*').eq('id',roomId).single();
+      const { data:p } = await sb.from('room_players').select('*').eq('room_id',roomId).order('seat_order');
+      if(mounted){ setRoom(r); setPlayers(p||[]); }
+    }
+    load();
+    const ch = sb.channel(`lobby-${roomId}`)
+      .on('postgres_changes',{event:'*',schema:'public',table:'room_players',filter:`room_id=eq.${roomId}`},load)
+      .on('postgres_changes',{event:'*',schema:'public',table:'rooms',filter:`id=eq.${roomId}`},load)
+      .subscribe();
+    return ()=>{ mounted=false; sb.removeChannel(ch); };
+  },[roomId]);
+
+  useEffect(()=>{
+    if(room && room.status==='playing') onStarted();
+  },[room]);
+
+  async function start(){
+    setBusy(true); setErr('');
+    const { data, error } = await sb.functions.invoke('start-round', { body:{ roomId } });
+    setBusy(false);
+    if(error||(data&&data.error)) return setErr((data&&data.error)||error.message);
+  }
+
+  if(!room) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Laden…</div>;
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',padding:24,gap:16}}>
+      <div style={{color:SC.muted,fontSize:'0.8rem',marginTop:20}}>Room code</div>
+      <div style={{fontSize:'2.4rem',fontWeight:800,color:SC.gold,letterSpacing:4}}>{room.code}</div>
+      <div style={{color:SC.muted,fontSize:'0.8rem'}}>Deel deze code met je medespelers</div>
+
+      <div style={{width:'100%',maxWidth:340,marginTop:16,display:'flex',flexDirection:'column',gap:8}}>
+        {players.map(p=>(
+          <div key={p.id} style={{padding:'12px 16px',borderRadius:10,background:SC.surface,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontWeight:700}}>{p.display_name}{p.id===playerId?' (jij)':''}</span>
+            <span style={{color:SC.green,fontSize:'0.75rem'}}>✓ verbonden</span>
+          </div>
+        ))}
+        {players.length<2 && <div style={{color:SC.muted,fontSize:'0.8rem',textAlign:'center'}}>Wacht op minstens 2 spelers…</div>}
+      </div>
+
+      {err && <div style={{color:SC.red,fontSize:'0.8rem'}}>{err}</div>}
+      <Button disabled={busy||players.length<2} onTap={start} style={{marginTop:12}}>{busy?'Bezig…':'Start ronde'}</Button>
+    </div>
+  );
+}
+
+// ── Playing screen ──
+function Playing({roomId, playerId}){
+  const [room,setRoom]=useState(null);
+  const [round,setRound]=useState(null);
+  const [players,setPlayers]=useState([]);
+  const [hand,setHand]=useState(null); // own hand row
+  const [selected,setSelected]=useState([]); // selected card ids (ungrouped pool)
+  const [groups,setGroups]=useState([]); // array of arrays of card ids
+  const [err,setErr]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [results,setResults]=useState(null);
+
+  const jokerSpec = round ? { suit: round.joker_suit, rank: isNaN(Number(round.joker_rank)) ? round.joker_rank : Number(round.joker_rank) } : null;
+
+  async function loadAll(){
+    const { data:r } = await sb.from('rooms').select('*').eq('id',roomId).single();
+    setRoom(r);
+    const { data:ps } = await sb.from('room_players').select('*').eq('room_id',roomId).order('seat_order');
+    setPlayers(ps||[]);
+    if(!r) return;
+    const { data:rd } = await sb.from('rounds').select('*').eq('room_id',roomId).eq('round_no', r.current_round).maybeSingle();
+    setRound(rd||null);
+    if(rd){
+      const { data:h } = await sb.from('hands').select('*').eq('round_id',rd.id).eq('player_id',playerId).maybeSingle();
+      setHand(h||null);
+      if(rd.phase==='finished'){
+        const { data:rr } = await sb.from('round_results').select('*').eq('round_id',rd.id);
+        setResults(rr||null);
+      } else setResults(null);
+    }
+  }
+
+  useEffect(()=>{
+    loadAll();
+    const ch = sb.channel(`play-${roomId}`)
+      .on('postgres_changes',{event:'*',schema:'public',table:'rooms',filter:`id=eq.${roomId}`},loadAll)
+      .on('postgres_changes',{event:'*',schema:'public',table:'rounds',filter:`room_id=eq.${roomId}`},loadAll)
+      .on('postgres_changes',{event:'*',schema:'public',table:'hands'},loadAll)
+      .on('postgres_changes',{event:'*',schema:'public',table:'room_players',filter:`room_id=eq.${roomId}`},loadAll)
+      .on('postgres_changes',{event:'*',schema:'public',table:'round_results'},loadAll)
+      .subscribe();
+    return ()=>sb.removeChannel(ch);
+  },[roomId]);
+
+  useEffect(()=>{ setSelected([]); setGroups([]); },[hand && hand.cards && hand.cards.length]);
+
+  if(!room) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Laden…</div>;
+
+  if(room.status==='finished'){
+    const ranked=[...players].sort((a,b)=>a.total_score-b.total_score);
+    return (
+      <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,padding:24}}>
+        <div style={{fontSize:'2rem'}}>🏆</div>
+        <h2 style={{color:SC.gold}}>Eindstand</h2>
+        {ranked.map((p,i)=>(
+          <div key={p.id} style={{width:'100%',maxWidth:320,display:'flex',justifyContent:'space-between',padding:'10px 16px',background:i===0?'rgba(232,184,109,0.15)':SC.surface,borderRadius:10}}>
+            <span>{i===0?'🥇':i===1?'🥈':i===2?'🥉':' '} {p.display_name}</span>
+            <span style={{fontWeight:800}}>{p.total_score}</span>
+          </div>
+        ))}
+        <Button onTap={()=>window.location.href='super.html'} style={{marginTop:16}}>Nieuw spel</Button>
+      </div>
+    );
+  }
+
+  if(!round || room.status==='lobby'){
+    return <Lobby roomId={roomId} playerId={playerId} onStarted={loadAll}/>;
+  }
+
+  if(round.phase==='finished'){
+    return (
+      <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,padding:24}}>
+        <h2 style={{color:SC.gold}}>Ronde {round.round_no} klaar</h2>
+        {results && players.map(p=>{
+          const r=results.find(x=>x.player_id===p.id);
+          return (
+            <div key={p.id} style={{width:'100%',maxWidth:320,display:'flex',justifyContent:'space-between',padding:'10px 16px',background:SC.surface,borderRadius:10}}>
+              <span>{p.display_name}{r&&r.opened?(r.opened_with_joker?' 🃟':' 🏆'):''}{r&&r.was_turning?' 🔄':''}</span>
+              <span style={{fontWeight:800,color:r&&r.penalty_points<0?SC.green:SC.text}}>{r?(r.penalty_points>0?'+':'')+r.penalty_points:'…'}</span>
+            </div>
+          );
+        })}
+        <div style={{color:SC.muted,fontSize:'0.8rem',marginTop:8}}>Totaalstand</div>
+        {[...players].sort((a,b)=>a.total_score-b.total_score).map(p=>(
+          <div key={p.id} style={{fontSize:'0.85rem',color:SC.muted}}>{p.display_name}: <b style={{color:SC.text}}>{p.total_score}</b></div>
+        ))}
+        <Button onTap={()=>sb.functions.invoke('start-round',{body:{roomId}})} style={{marginTop:16}}>Volgende ronde</Button>
+      </div>
+    );
+  }
+
+  if(!hand) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Hand laden…</div>;
+
+  const myTurn = round.turn_player_id===playerId;
+  const cards = sortHand(hand.cards);
+  const groupedIds = new Set(groups.flat());
+  const ungrouped = cards.filter(c=>!groupedIds.has(c.id));
+  const topDiscard = round.discard.length ? round.discard[round.discard.length-1] : null;
+  const turnPlayer = players.find(p=>p.id===round.turn_player_id);
+
+  function toggleSelect(id){
+    setSelected(s=> s.includes(id) ? s.filter(x=>x!==id) : [...s,id]);
+  }
+  function makeGroup(){
+    const cs = selected.map(id=>cards.find(c=>c.id===id)).filter(Boolean);
+    if(cs.length<3){ setErr('Selecteer minstens 3 kaarten'); return; }
+    if(!window.isValidMeld(cs, jokerSpec)){ setErr('Geen geldige set of reeks'); return; }
+    setGroups(g=>[...g, selected]);
+    setSelected([]); setErr('');
+  }
+  function ungroup(i){
+    setGroups(g=>g.filter((_,idx)=>idx!==i));
+  }
+
+  async function draw(source){
+    setBusy(true); setErr('');
+    const { data, error } = await sb.functions.invoke('draw-card',{body:{roundId:round.id, source}});
+    setBusy(false);
+    if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
+  }
+  async function discard(){
+    if(selected.length!==1){ setErr('Selecteer precies 1 kaart om af te leggen'); return; }
+    setBusy(true); setErr('');
+    const { data, error } = await sb.functions.invoke('discard-card',{body:{roundId:round.id, cardId:selected[0]}});
+    setBusy(false);
+    if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
+  }
+  async function openHand(){
+    if(ungrouped.length!==1){ setErr('Precies 1 kaart moet overblijven om af te leggen'); return; }
+    setBusy(true); setErr('');
+    const { data, error } = await sb.functions.invoke('open-hand',{body:{roundId:round.id, groups, discardCardId:ungrouped[0].id}});
+    setBusy(false);
+    if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
+  }
+
+  const canOpen = hand.cards.length===15 && groups.length>0 && ungrouped.length===1;
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',padding:'16px 12px 100px',gap:12}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div style={{fontSize:'0.75rem',color:SC.muted}}>Ronde {round.round_no}/{room.round_target}</div>
+        <div style={{fontSize:'0.75rem',color:myTurn?SC.green:SC.muted,fontWeight:700}}>{myTurn?'Jouw beurt':`Beurt: ${turnPlayer?turnPlayer.display_name:'…'}`}</div>
+      </div>
+
+      <div style={{display:'flex',justifyContent:'center',gap:20,alignItems:'center'}}>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:'0.7rem',color:SC.muted,marginBottom:4}}>Trekstapel ({round.stock.length})</div>
+          <div onPointerDown={()=>myTurn&&hand.cards.length===14&&draw('stock')} style={{...TAP,width:52,height:74,borderRadius:8,background:'#1a1a28',border:'2px solid rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.3rem'}}>🂠</div>
+        </div>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:'0.7rem',color:SC.muted,marginBottom:4}}>Joker: {round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</div>
+          <div style={{width:52,height:74,borderRadius:8,background:'#161622',border:`2px solid ${SUIT_COLOR[round.open_card.suit]}`,display:'flex',alignItems:'center',justifyContent:'center',color:SUIT_COLOR[round.open_card.suit],fontWeight:800}}>{cardLabel(round.open_card)}</div>
+        </div>
+        <div style={{textAlign:'center'}}>
+          <div style={{fontSize:'0.7rem',color:SC.muted,marginBottom:4}}>Aflegstapel</div>
+          {topDiscard
+            ? <div onPointerDown={()=>myTurn&&hand.cards.length===14&&draw('discard')} style={{...TAP,width:52,height:74,borderRadius:8,background:'#161622',border:`2px solid ${cardColor(topDiscard)}`,display:'flex',alignItems:'center',justifyContent:'center',color:cardColor(topDiscard),fontWeight:800}}>{cardLabel(topDiscard)}</div>
+            : <div style={{width:52,height:74,borderRadius:8,border:'2px dashed rgba(255,255,255,0.15)'}}></div>}
+        </div>
+      </div>
+
+      {hand.is_turning && <div style={{textAlign:'center',color:SC.gold,fontSize:'0.8rem',fontWeight:700}}>🔄 Jij bent aan het draaien — je hand ligt klaar!</div>}
+
+      {groups.length>0 && (
+        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+          <div style={{fontSize:'0.75rem',color:SC.muted}}>Jouw combinaties</div>
+          {groups.map((g,i)=>(
+            <div key={i} onPointerDown={()=>ungroup(i)} style={{...TAP,display:'flex',gap:4,padding:8,background:'rgba(126,201,106,0.1)',border:'1px solid rgba(126,201,106,0.3)',borderRadius:8}}>
+              {g.map(id=>{const c=cards.find(x=>x.id===id); return c?<Card key={id} card={c} small/>:null;})}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+        <div style={{fontSize:'0.75rem',color:SC.muted}}>Jouw hand ({hand.cards.length})</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+          {ungrouped.map(c=>(
+            <Card key={c.id} card={c} selected={selected.includes(c.id)} onTap={()=>toggleSelect(c.id)}/>
+          ))}
+        </div>
+      </div>
+
+      {err && <div style={{color:SC.red,fontSize:'0.8rem',textAlign:'center'}}>{err}</div>}
+
+      <div style={{position:'fixed',bottom:0,left:0,right:0,padding:14,display:'flex',gap:8,justifyContent:'center',background:'linear-gradient(transparent,#07070f 30%)'}}>
+        {myTurn && hand.cards.length===15 && selected.length>=3 && (
+          <Button color={SC.green} disabled={busy} onTap={makeGroup}>Groep maken</Button>
+        )}
+        {myTurn && hand.cards.length===15 && (
+          <Button color={SC.blue} disabled={busy||selected.length!==1} onTap={discard}>Leg af</Button>
+        )}
+        {myTurn && canOpen && (
+          <Button color={SC.gold} disabled={busy} onTap={openHand}>Open hand</Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const [session,setSession]=useState(null);
+  const [entry,setEntry]=useState(null); // {roomId, playerId}
+
+  useEffect(()=>{
+    async function init(){
+      const { data:{ session:s } } = await sb.auth.getSession();
+      if(s){ setSession(s); return; }
+      const { data, error } = await sb.auth.signInAnonymously();
+      if(!error) setSession(data.session);
+    }
+    init();
+    const dev = loadDevice();
+    if(dev) setEntry(dev);
+  },[]);
+
+  if(!session) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Verbinden…</div>;
+  if(!entry) return <Home onEntered={(roomId,playerId)=>setEntry({roomId,playerId})}/>;
+  return <Playing roomId={entry.roomId} playerId={entry.playerId}/>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
