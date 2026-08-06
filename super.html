@@ -86,9 +86,11 @@ function Button({children, onTap, color=SC.gold, disabled, style}){
 
 // ── Home: create or join ──
 function Home({onEntered}){
-  const [mode,setMode]=useState(null); // 'create' | 'join'
+  const params=new URLSearchParams(window.location.search);
+  const roomFromLink=params.get('room');
+  const [mode,setMode]=useState(roomFromLink?'join':null); // 'create' | 'join'
   const [name,setName]=useState('');
-  const [code,setCode]=useState('');
+  const [code,setCode]=useState(roomFromLink?roomFromLink.toUpperCase():'');
   const [roundTarget,setRoundTarget]=useState(8);
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState('');
@@ -156,6 +158,7 @@ function Lobby({roomId, playerId, onStarted}){
   const [players,setPlayers]=useState([]);
   const [busy,setBusy]=useState(false);
   const [err,setErr]=useState('');
+  const [copied,setCopied]=useState(false);
 
   useEffect(()=>{
     let mounted=true;
@@ -185,11 +188,31 @@ function Lobby({roomId, playerId, onStarted}){
 
   if(!room) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Laden…</div>;
 
+  const joinLink=`${window.location.origin}${window.location.pathname}?room=${room.code}`;
+  const shareText=`Kom Super spelen! 🃏 Room-code: ${room.code}\n${joinLink}`;
+  const whatsappLink=`https://wa.me/?text=${encodeURIComponent(shareText)}`;
+  async function nativeShare(){
+    if(navigator.share){
+      try{ await navigator.share({title:'Super',text:shareText,url:joinLink}); }catch(e){}
+    }else{
+      try{ await navigator.clipboard.writeText(shareText); setCopied(true); setTimeout(()=>setCopied(false),2000); }catch(e){}
+    }
+  }
+
   return (
     <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',padding:24,gap:16}}>
       <div style={{color:SC.muted,fontSize:'0.8rem',marginTop:20}}>Room code</div>
       <div style={{fontSize:'2.4rem',fontWeight:800,color:SC.gold,letterSpacing:4}}>{room.code}</div>
       <div style={{color:SC.muted,fontSize:'0.8rem'}}>Deel deze code met je medespelers</div>
+
+      <div style={{display:'flex',gap:10,marginTop:4}}>
+        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{...TAP,textDecoration:'none',display:'flex',alignItems:'center',gap:8,padding:'10px 16px',borderRadius:10,background:'#25D366',color:'#0a0a12',fontWeight:800,fontSize:'0.85rem'}}>
+          <span style={{fontSize:'1.1rem'}}>💬</span> WhatsApp
+        </a>
+        <button onPointerDown={nativeShare} style={{...TAP,display:'flex',alignItems:'center',gap:8,padding:'10px 16px',borderRadius:10,background:SC.surface,border:'1px solid rgba(255,255,255,0.15)',color:SC.text,fontWeight:700,fontSize:'0.85rem'}}>
+          <span style={{fontSize:'1.1rem'}}>{copied?'✓':'🔗'}</span> {copied?'Gekopieerd':'Delen'}
+        </button>
+      </div>
 
       <div style={{width:'100%',maxWidth:340,marginTop:16,display:'flex',flexDirection:'column',gap:8}}>
         {players.map(p=>(
