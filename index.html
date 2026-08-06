@@ -235,7 +235,8 @@ stateRef.current=[...stateRef.current,card];setFlyingCards([...stateRef.current]
 }
 function toggleTheme(){const next=isDark?'light':'dark';setTheme(next);saveTheme(next);document.body.style.background=next==='dark'?'#07070f':'#f0f2ff';document.body.style.color=next==='dark'?'#ede8f5':'#1a1a2e';}
 const GAMES=[
-{id:'okey',suit:'🀄',title:'Super',sub:'Okey',color:'#e8b86d',glow:'232,184,109',bg:'radial-gradient(ellipse at 20% 50%,#2a2010,#1a1508 60%,#100e06)',border:'rgba(232,184,109,0.35)',desc:'2–4 spelers · Chuft · Jokers · Multipliers',badge:'♣️ ♠️ ♦️ ♥️'},
+{id:'super-live',suit:'🃏',title:'Super',sub:'Live',color:'#a06ae8',glow:'160,106,232',bg:'radial-gradient(ellipse at 20% 50%,#241a30,#161020 60%,#0c0814)',border:'rgba(160,106,232,0.35)',desc:'2–4 spelers · 2 decks · Live multiplayer · Echte kaarten',badge:'📲 SPEEL LIVE'},
+{id:'okey',suit:'🀄',title:'Super (Okey)',sub:'Teller',color:'#e8b86d',glow:'232,184,109',bg:'radial-gradient(ellipse at 20% 50%,#2a2010,#1a1508 60%,#100e06)',border:'rgba(232,184,109,0.35)',desc:'2–4 spelers · Chuft · Jokers · Multipliers',badge:'♣️ ♠️ ♦️ ♥️'},
 {id:'batak',suit:'♠️',title:'Batak',sub:null,color:'#6aaaff',glow:'106,170,255',bg:'radial-gradient(ellipse at 80% 50%,#0d1e38,#091428 60%,#060c18)',border:'rgba(106,170,255,0.35)',desc:'2 vs 2 · Bieden · King bieding · 61 punten',badge:'BOD 7–13 · 👑 KING'},
 {id:'pishti',suit:'🃏',title:'Pishti',sub:null,color:'#7ec96a',glow:'126,201,106',bg:'radial-gradient(ellipse at 30% 70%,#0d2014,#081508 60%,#060e06)',border:'rgba(126,201,106,0.35)',desc:'1v1 of 2v2 · Pishti +10 · Boer +20 · 151 punten',badge:'PISHTI +10 · BOER +20'},
 {id:'trix',suit:'♥️',title:'Trix',sub:null,color:'#ff7aaa',glow:'255,122,170',bg:'radial-gradient(ellipse at 60% 30%,#2a0d18,#1a0810 60%,#100608)',border:'rgba(255,122,170,0.35)',desc:'4 spelers · 5 contracten · Koningrijken',badge:'♥️ -75 · 👸 -25 · ♦️ -10'},
@@ -269,7 +270,7 @@ style={{position:"absolute",bottom:0,left:`calc(50% + ${baseX}px)`,transform:`tr
 </div>
 <div style={{width:"100%",display:"flex",flexDirection:"column",gap:12}}>
 {GAMES.map((g,i)=>(
-<button key={g.id} onPointerDown={(e)=>{e.currentTarget._sy=e.clientY;}} onPointerUp={(e)=>{if(Math.abs(e.clientY-(e.currentTarget._sy||e.clientY))<8){haptic("medium");window.triggerRandom();onSelect(g.id);}}}
+<button key={g.id} onPointerDown={(e)=>{e.currentTarget._sy=e.clientY;}} onPointerUp={(e)=>{if(Math.abs(e.clientY-(e.currentTarget._sy||e.clientY))<8){haptic("medium");window.triggerRandom();if(g.id==='super-live'){window.location.href='super.html';}else{onSelect(g.id);}}}}
 style={{width:"100%",background:isDark?g.bg:"rgba(255,255,255,0.75)",border:`1.5px solid ${isDark?g.border:"rgba(0,0,0,0.08)"}`,borderRadius:18,padding:"20px 20px 16px",textAlign:"left",...TAP,boxShadow:`0 4px 24px rgba(${g.glow},0.12)`,animation:`slideUp 0.4s ease-out ${i*0.07}s both`,overflow:"hidden",position:"relative"}}>
 <div style={{display:"flex",alignItems:"flex-start",gap:14}}>
 <div style={{width:52,height:52,borderRadius:14,flexShrink:0,background:`rgba(${g.glow},0.1)`,border:`1.5px solid rgba(${g.glow},0.3)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.8rem"}}>{g.suit}</div>
