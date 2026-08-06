@@ -4,14 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#07070f">
+<meta name="theme-color" content="#0a0714">
 <title>Super</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{background:#07070f;color:#ede8f5;font-family:system-ui,-apple-system,sans-serif;overscroll-behavior:none}
+html{background:#0a0714}
+body{
+  background:
+    radial-gradient(ellipse 900px 600px at 15% -5%, rgba(160,106,232,0.20), transparent 60%),
+    radial-gradient(ellipse 800px 700px at 100% 20%, rgba(232,184,109,0.12), transparent 55%),
+    radial-gradient(ellipse 900px 900px at 50% 120%, rgba(106,170,255,0.10), transparent 55%),
+    #0a0714;
+  color:#ede8f5;font-family:system-ui,-apple-system,sans-serif;overscroll-behavior:none;min-height:100vh;
+}
 button,input{font-family:inherit;-webkit-appearance:none}
+button:active{transform:scale(0.96)}
 @keyframes popIn{0%{transform:scale(0.5);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes slideUp{0%{transform:translateY(16px);opacity:0}100%{transform:translateY(0);opacity:1}}
+@keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 0 rgba(232,184,109,0)}50%{box-shadow:0 0 18px rgba(232,184,109,0.5)}}
 .pop{animation:popIn 0.25s ease-out}
+.slide-up{animation:slideUp 0.35s ease-out both}
+.fade-in{animation:fadeIn 0.3s ease-out both}
 </style>
 </head>
 <body>
@@ -34,8 +48,13 @@ const SUPABASE_ANON_KEY = "sb_publishable_j6PM9YHhGeUA5XDeO9fMFQ_SCuRd4oi";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const SUIT_SYMBOL = { C:'♣', D:'♦', H:'♥', S:'♠' };
-const SUIT_COLOR = { C:'#7ec96a', D:'#e8b86d', H:'#ff7aaa', S:'#6aaaff' };
-const SC = { bg:'#07070f', surface:'rgba(255,255,255,0.05)', gold:'#e8b86d', green:'#7ec96a', red:'#c96a6a', blue:'#6aaaff', muted:'#8a8aaa', text:'#ede8f5' };
+const SUIT_COLOR = { C:'#2f9e52', D:'#c98a2e', H:'#e0396b', S:'#3170c9' };
+const SC = {
+  bg:'#0a0714', surface:'rgba(255,255,255,0.055)', surfaceHi:'rgba(255,255,255,0.09)',
+  border:'rgba(255,255,255,0.10)', glass:'rgba(20,16,30,0.55)',
+  gold:'#e8b86d', goldDeep:'#c8963f', green:'#7ec96a', red:'#e0708a', blue:'#6aaaff',
+  purple:'#a06ae8', muted:'#8f8aa8', text:'#f2eef8'
+};
 
 function cardLabel(card){
   if(card.suit==='J') return '🃟';
@@ -62,25 +81,79 @@ function saveDevice(v){ try{ localStorage.setItem('super_device', JSON.stringify
 
 function Card({card, selected, onTap, small}){
   const col=cardColor(card);
+  const w=small?36:54, h=small?50:76;
   return (
     <div onPointerDown={onTap} style={{...TAP,
-      width:small?38:52, height:small?54:74, borderRadius:8,
-      background:selected?col:'#161622', border:`2px solid ${selected?col:'rgba(255,255,255,0.12)'}`,
-      display:'flex',alignItems:'center',justifyContent:'center',
-      color:selected?'#0a0a12':col, fontWeight:800, fontSize:small?'0.75rem':'0.95rem',
-      flexShrink:0, transition:'all 0.12s', boxShadow:selected?`0 0 12px ${col}66`:'none',
-      transform:selected?'translateY(-6px)':'none'
-    }}>{cardLabel(card)}</div>
+      width:w, height:h, borderRadius:small?6:9,
+      background: card.suit==='J'
+        ? 'linear-gradient(155deg,#fdf7ec,#f3e6ff)'
+        : 'linear-gradient(155deg,#fffdf8,#f4efe4)',
+      border:`1.5px solid ${selected?col:'rgba(0,0,0,0.14)'}`,
+      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+      position:'relative', flexShrink:0, transition:'transform 0.15s,box-shadow 0.15s',
+      boxShadow:selected
+        ? `0 0 0 2px ${col}, 0 10px 20px -6px ${col}77, 0 4px 10px rgba(0,0,0,0.5)`
+        : '0 2px 6px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.06) inset',
+      transform:selected?'translateY(-10px)':'translateY(0)',
+    }}>
+      <span style={{position:'absolute', top:small?2:4, left:small?3:5, fontSize:small?'0.5rem':'0.62rem', fontWeight:800, color:col, lineHeight:1}}>
+        {card.suit==='J'?'':card.rank}
+      </span>
+      <span style={{color:col, fontWeight:800, fontSize:small?'0.85rem':'1.15rem'}}>{cardLabel(card)}</span>
+    </div>
   );
 }
 
-function Button({children, onTap, color=SC.gold, disabled, style}){
+function CardBack({onTap, w=54, h=76, label}){
+  return (
+    <div onPointerDown={onTap} style={{...TAP,
+      width:w, height:h, borderRadius:9,
+      background:'repeating-linear-gradient(135deg,#3a1f5c,#3a1f5c 6px,#2c1747 6px,#2c1747 12px)',
+      border:'1.5px solid rgba(232,184,109,0.4)',
+      boxShadow:'0 2px 6px rgba(0,0,0,0.5), inset 0 0 0 3px rgba(10,7,20,0.5)',
+      display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
+    }}>
+      <span style={{fontSize:'0.9rem',opacity:0.85}}>{label||'🂠'}</span>
+    </div>
+  );
+}
+
+function Button({children, onTap, color=SC.gold, disabled, style, variant}){
+  const isGhost = variant==='ghost';
   return (
     <button onPointerDown={disabled?undefined:onTap} disabled={disabled} style={{...TAP,
-      padding:'12px 20px', borderRadius:12, border:'none',
-      background:disabled?'rgba(255,255,255,0.08)':color, color:disabled?SC.muted:'#0a0a12',
-      fontWeight:800, fontSize:'0.9rem', opacity:disabled?0.5:1, ...style
+      padding:'13px 22px', borderRadius:14, border:isGhost?`1.5px solid ${SC.border}`:'none',
+      background: disabled ? 'rgba(255,255,255,0.07)'
+        : isGhost ? 'rgba(255,255,255,0.04)'
+        : `linear-gradient(155deg, ${color}, ${color}cc)`,
+      color: disabled ? SC.muted : isGhost ? SC.text : '#0f0a04',
+      fontWeight:800, fontSize:'0.9rem', opacity:disabled?0.55:1,
+      boxShadow: disabled||isGhost ? 'none' : `0 6px 16px -4px ${color}88, 0 2px 4px rgba(0,0,0,0.3)`,
+      transition:'transform 0.12s, box-shadow 0.12s', letterSpacing:'0.01em',
+      ...style
     }}>{children}</button>
+  );
+}
+
+// ── Top bar with exit-to-menu button, shown on every screen ──
+function TopBar({title, sub}){
+  function exit(){
+    try{ localStorage.removeItem('super_device'); }catch(e){}
+    window.location.href='index.html';
+  }
+  return (
+    <div style={{position:'sticky',top:0,zIndex:50,display:'flex',alignItems:'center',gap:12,
+      padding:'14px 16px',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
+      background:'rgba(10,7,20,0.55)',borderBottom:`1px solid ${SC.border}`}}>
+      <button onPointerDown={exit} style={{...TAP,width:38,height:38,borderRadius:12,border:`1px solid ${SC.border}`,
+        background:'rgba(255,255,255,0.06)',color:SC.text,fontSize:'1.1rem',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+        ←
+      </button>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:'0.95rem',fontWeight:800,color:SC.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{title}</div>
+        {sub && <div style={{fontSize:'0.7rem',color:SC.muted,marginTop:1}}>{sub}</div>}
+      </div>
+    </div>
   );
 }
 
@@ -115,39 +188,49 @@ function Home({onEntered}){
     onEntered(data.room.id, data.player.id);
   }
 
+  const inputStyle={padding:'14px 16px',borderRadius:14,border:`1.5px solid ${SC.border}`,background:SC.surface,color:SC.text,fontSize:'1rem',width:'100%'};
+
   return (
-    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,gap:16}}>
-      <div style={{fontSize:'2.2rem'}}>🃏</div>
-      <h1 style={{color:SC.gold,fontSize:'1.6rem',fontWeight:800}}>Super</h1>
-      <div style={{color:SC.muted,fontSize:'0.85rem',textAlign:'center'}}>2 decks · 2 jokers · live multiplayer</div>
-
-      {!mode && (
-        <div style={{display:'flex',gap:12,marginTop:12}}>
-          <Button onTap={()=>setMode('create')}>Room maken</Button>
-          <Button color={SC.blue} onTap={()=>setMode('join')}>Room joinen</Button>
+    <div style={{minHeight:'100vh'}}>
+      <TopBar title="Super" sub="Live multiplayer kaartspel"/>
+      <div style={{minHeight:'calc(100vh - 68px)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,gap:18}}>
+        <div className="slide-up" style={{textAlign:'center'}}>
+          <div style={{fontSize:'3.2rem',marginBottom:6,filter:'drop-shadow(0 6px 18px rgba(160,106,232,0.45))'}}>🃏</div>
+          <h1 style={{fontSize:'2.1rem',fontWeight:900,letterSpacing:'-0.02em',
+            background:'linear-gradient(135deg,#c8a040,#f5d878 35%,#e8b6ff 65%,#a06ae8)',
+            WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',margin:'0 0 6px'}}>Super</h1>
+          <div style={{color:SC.muted,fontSize:'0.85rem'}}>2 decks · 2 jokers · live multiplayer</div>
         </div>
-      )}
 
-      {mode && (
-        <div className="pop" style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:10,marginTop:8}}>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Jouw naam"
-            style={{padding:'12px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.15)',background:SC.surface,color:SC.text,fontSize:'1rem'}} />
-          {mode==='join' && (
-            <input value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="ROOM CODE"
-              style={{padding:'12px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.15)',background:SC.surface,color:SC.text,fontSize:'1rem',letterSpacing:2,textTransform:'uppercase'}} />
-          )}
-          {mode==='create' && (
-            <div style={{display:'flex',alignItems:'center',gap:10,color:SC.muted,fontSize:'0.85rem'}}>
-              Aantal rondes:
-              <input type="number" value={roundTarget} onChange={e=>setRoundTarget(e.target.value)} min={1}
-                style={{width:70,padding:'8px 10px',borderRadius:8,border:'1px solid rgba(255,255,255,0.15)',background:SC.surface,color:SC.text}} />
-            </div>
-          )}
-          {err && <div style={{color:SC.red,fontSize:'0.8rem'}}>{err}</div>}
-          <Button disabled={busy} onTap={mode==='create'?createRoom:joinRoom}>{busy?'Bezig…':mode==='create'?'Maak room':'Join room'}</Button>
-          <div onPointerDown={()=>setMode(null)} style={{...TAP,textAlign:'center',color:SC.muted,fontSize:'0.8rem'}}>← Terug</div>
-        </div>
-      )}
+        {!mode && (
+          <div className="slide-up" style={{display:'flex',gap:12,marginTop:8,width:'100%',maxWidth:340,flexDirection:'column'}}>
+            <Button onTap={()=>setMode('create')}>🎲 Room maken</Button>
+            <Button color={SC.blue} onTap={()=>setMode('join')}>🔑 Room joinen</Button>
+          </div>
+        )}
+
+        {mode && (
+          <div className="pop" style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:12,marginTop:4,
+            padding:20,borderRadius:20,background:SC.glass,border:`1px solid ${SC.border}`,backdropFilter:'blur(16px)'}}>
+            <input value={name} onChange={e=>setName(e.target.value)} placeholder="Jouw naam" style={inputStyle} />
+            {mode==='join' && (
+              <input value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="ROOM CODE"
+                style={{...inputStyle,letterSpacing:3,textTransform:'uppercase',fontWeight:800,textAlign:'center'}} />
+            )}
+            {mode==='create' && (
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,color:SC.muted,fontSize:'0.85rem',
+                padding:'10px 14px',borderRadius:12,background:SC.surface,border:`1px solid ${SC.border}`}}>
+                Aantal rondes
+                <input type="number" value={roundTarget} onChange={e=>setRoundTarget(e.target.value)} min={1}
+                  style={{width:60,padding:'6px 8px',borderRadius:8,border:`1px solid ${SC.border}`,background:'rgba(0,0,0,0.25)',color:SC.text,textAlign:'center',fontWeight:700}} />
+              </div>
+            )}
+            {err && <div style={{color:SC.red,fontSize:'0.8rem',textAlign:'center'}}>{err}</div>}
+            <Button disabled={busy} onTap={mode==='create'?createRoom:joinRoom}>{busy?'Bezig…':mode==='create'?'Maak room':'Join room'}</Button>
+            <div onPointerDown={()=>setMode(null)} style={{...TAP,textAlign:'center',color:SC.muted,fontSize:'0.8rem'}}>← Terug</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -186,7 +269,12 @@ function Lobby({roomId, playerId, onStarted}){
     if(error||(data&&data.error)) return setErr((data&&data.error)||error.message);
   }
 
-  if(!room) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Laden…</div>;
+  if(!room) return (
+    <div style={{minHeight:'100vh'}}>
+      <TopBar title="Lobby"/>
+      <div style={{minHeight:'calc(100vh - 68px)',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Laden…</div>
+    </div>
+  );
 
   const joinLink=`${window.location.origin}${window.location.pathname}?room=${room.code}`;
   const shareText=`Kom Super spelen! 🃏 Room-code: ${room.code}\n${joinLink}`;
@@ -200,32 +288,42 @@ function Lobby({roomId, playerId, onStarted}){
   }
 
   return (
-    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',padding:24,gap:16}}>
-      <div style={{color:SC.muted,fontSize:'0.8rem',marginTop:20}}>Room code</div>
-      <div style={{fontSize:'2.4rem',fontWeight:800,color:SC.gold,letterSpacing:4}}>{room.code}</div>
-      <div style={{color:SC.muted,fontSize:'0.8rem'}}>Deel deze code met je medespelers</div>
+    <div style={{minHeight:'100vh'}}>
+      <TopBar title="Lobby" sub={`Ronde-doel: ${room.round_target}`}/>
+      <div className="fade-in" style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'28px 20px 40px',gap:18}}>
+        <div style={{textAlign:'center',padding:'22px 28px',borderRadius:20,background:SC.glass,border:`1px solid ${SC.border}`,backdropFilter:'blur(16px)'}}>
+          <div style={{color:SC.muted,fontSize:'0.75rem',textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:6}}>Room code</div>
+          <div style={{fontSize:'2.6rem',fontWeight:900,letterSpacing:6,
+            background:'linear-gradient(135deg,#f5d878,#e8b6ff)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>{room.code}</div>
+          <div style={{color:SC.muted,fontSize:'0.78rem',marginTop:4}}>Deel deze code met je medespelers</div>
+        </div>
 
-      <div style={{display:'flex',gap:10,marginTop:4}}>
-        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{...TAP,textDecoration:'none',display:'flex',alignItems:'center',gap:8,padding:'10px 16px',borderRadius:10,background:'#25D366',color:'#0a0a12',fontWeight:800,fontSize:'0.85rem'}}>
-          <span style={{fontSize:'1.1rem'}}>💬</span> WhatsApp
-        </a>
-        <button onPointerDown={nativeShare} style={{...TAP,display:'flex',alignItems:'center',gap:8,padding:'10px 16px',borderRadius:10,background:SC.surface,border:'1px solid rgba(255,255,255,0.15)',color:SC.text,fontWeight:700,fontSize:'0.85rem'}}>
-          <span style={{fontSize:'1.1rem'}}>{copied?'✓':'🔗'}</span> {copied?'Gekopieerd':'Delen'}
-        </button>
+        <div style={{display:'flex',gap:10}}>
+          <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{...TAP,textDecoration:'none',display:'flex',alignItems:'center',gap:8,padding:'12px 18px',borderRadius:14,background:'linear-gradient(155deg,#2fd66b,#1fa851)',color:'#06210f',fontWeight:800,fontSize:'0.85rem',boxShadow:'0 6px 16px -4px #25D36688'}}>
+            <span style={{fontSize:'1.1rem'}}>💬</span> WhatsApp
+          </a>
+          <button onPointerDown={nativeShare} style={{...TAP,display:'flex',alignItems:'center',gap:8,padding:'12px 18px',borderRadius:14,background:SC.surface,border:`1.5px solid ${SC.border}`,color:SC.text,fontWeight:700,fontSize:'0.85rem'}}>
+            <span style={{fontSize:'1.1rem'}}>{copied?'✓':'🔗'}</span> {copied?'Gekopieerd':'Delen'}
+          </button>
+        </div>
+
+        <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:8}}>
+          <div style={{color:SC.muted,fontSize:'0.72rem',textTransform:'uppercase',letterSpacing:'0.08em',padding:'0 4px'}}>Spelers ({players.length}/4)</div>
+          {players.map((p,i)=>(
+            <div key={p.id} className="slide-up" style={{padding:'13px 16px',borderRadius:14,background:SC.surface,border:`1px solid ${SC.border}`,display:'flex',justifyContent:'space-between',alignItems:'center',animationDelay:`${i*0.05}s`}}>
+              <span style={{fontWeight:700,display:'flex',alignItems:'center',gap:8}}>
+                <span style={{width:8,height:8,borderRadius:'50%',background:SC.green,boxShadow:`0 0 8px ${SC.green}`}}/>
+                {p.display_name}{p.id===playerId?' (jij)':''}
+              </span>
+              <span style={{color:SC.green,fontSize:'0.72rem',fontWeight:700}}>Verbonden</span>
+            </div>
+          ))}
+          {players.length<2 && <div style={{color:SC.muted,fontSize:'0.8rem',textAlign:'center',padding:'10px 0'}}>Wacht op minstens 2 spelers…</div>}
+        </div>
+
+        {err && <div style={{color:SC.red,fontSize:'0.8rem'}}>{err}</div>}
+        <Button disabled={busy||players.length<2} onTap={start} style={{marginTop:6,width:'100%',maxWidth:340}}>{busy?'Bezig…':'▶ Start ronde'}</Button>
       </div>
-
-      <div style={{width:'100%',maxWidth:340,marginTop:16,display:'flex',flexDirection:'column',gap:8}}>
-        {players.map(p=>(
-          <div key={p.id} style={{padding:'12px 16px',borderRadius:10,background:SC.surface,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <span style={{fontWeight:700}}>{p.display_name}{p.id===playerId?' (jij)':''}</span>
-            <span style={{color:SC.green,fontSize:'0.75rem'}}>✓ verbonden</span>
-          </div>
-        ))}
-        {players.length<2 && <div style={{color:SC.muted,fontSize:'0.8rem',textAlign:'center'}}>Wacht op minstens 2 spelers…</div>}
-      </div>
-
-      {err && <div style={{color:SC.red,fontSize:'0.8rem'}}>{err}</div>}
-      <Button disabled={busy||players.length<2} onTap={start} style={{marginTop:12}}>{busy?'Bezig…':'Start ronde'}</Button>
     </div>
   );
 }
@@ -276,21 +374,33 @@ function Playing({roomId, playerId}){
 
   useEffect(()=>{ setSelected([]); setGroups([]); },[hand && hand.cards && hand.cards.length]);
 
-  if(!room) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Laden…</div>;
+  if(!room) return (
+    <div style={{minHeight:'100vh'}}>
+      <TopBar title="Super"/>
+      <div style={{minHeight:'calc(100vh - 68px)',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Laden…</div>
+    </div>
+  );
 
   if(room.status==='finished'){
     const ranked=[...players].sort((a,b)=>a.total_score-b.total_score);
     return (
-      <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,padding:24}}>
-        <div style={{fontSize:'2rem'}}>🏆</div>
-        <h2 style={{color:SC.gold}}>Eindstand</h2>
-        {ranked.map((p,i)=>(
-          <div key={p.id} style={{width:'100%',maxWidth:320,display:'flex',justifyContent:'space-between',padding:'10px 16px',background:i===0?'rgba(232,184,109,0.15)':SC.surface,borderRadius:10}}>
-            <span>{i===0?'🥇':i===1?'🥈':i===2?'🥉':' '} {p.display_name}</span>
-            <span style={{fontWeight:800}}>{p.total_score}</span>
+      <div style={{minHeight:'100vh'}}>
+        <TopBar title="Eindstand"/>
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14,padding:'28px 24px'}}>
+          <div style={{fontSize:'2.6rem',filter:'drop-shadow(0 6px 16px rgba(232,184,109,0.5))'}}>🏆</div>
+          <h2 style={{fontSize:'1.3rem',fontWeight:900,background:'linear-gradient(135deg,#f5d878,#e8b6ff)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Eindstand</h2>
+          <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:8}}>
+            {ranked.map((p,i)=>(
+              <div key={p.id} className="slide-up" style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 18px',
+                background:i===0?'linear-gradient(155deg,rgba(232,184,109,0.22),rgba(232,184,109,0.06))':SC.surface,
+                border:`1px solid ${i===0?'rgba(232,184,109,0.4)':SC.border}`,borderRadius:16,animationDelay:`${i*0.06}s`}}>
+                <span style={{fontWeight:700}}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':'  '} {p.display_name}</span>
+                <span style={{fontWeight:900,fontSize:'1.05rem'}}>{p.total_score}</span>
+              </div>
+            ))}
           </div>
-        ))}
-        <Button onTap={()=>window.location.href='super.html'} style={{marginTop:16}}>Nieuw spel</Button>
+          <Button onTap={()=>window.location.href='super.html'} style={{marginTop:10}}>🔄 Nieuw spel</Button>
+        </div>
       </div>
     );
   }
@@ -301,27 +411,40 @@ function Playing({roomId, playerId}){
 
   if(round.phase==='finished'){
     return (
-      <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:10,padding:24}}>
-        <h2 style={{color:SC.gold}}>Ronde {round.round_no} klaar</h2>
-        {results && players.map(p=>{
-          const r=results.find(x=>x.player_id===p.id);
-          return (
-            <div key={p.id} style={{width:'100%',maxWidth:320,display:'flex',justifyContent:'space-between',padding:'10px 16px',background:SC.surface,borderRadius:10}}>
-              <span>{p.display_name}{r&&r.opened?(r.opened_with_joker?' 🃟':' 🏆'):''}{r&&r.was_turning?' 🔄':''}</span>
-              <span style={{fontWeight:800,color:r&&r.penalty_points<0?SC.green:SC.text}}>{r?(r.penalty_points>0?'+':'')+r.penalty_points:'…'}</span>
-            </div>
-          );
-        })}
-        <div style={{color:SC.muted,fontSize:'0.8rem',marginTop:8}}>Totaalstand</div>
-        {[...players].sort((a,b)=>a.total_score-b.total_score).map(p=>(
-          <div key={p.id} style={{fontSize:'0.85rem',color:SC.muted}}>{p.display_name}: <b style={{color:SC.text}}>{p.total_score}</b></div>
-        ))}
-        <Button onTap={()=>sb.functions.invoke('start-round',{body:{roomId}})} style={{marginTop:16}}>Volgende ronde</Button>
+      <div style={{minHeight:'100vh'}}>
+        <TopBar title={`Ronde ${round.round_no}`} sub="Klaar"/>
+        <div className="fade-in" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:'24px 24px 32px'}}>
+          <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:8}}>
+            {results && players.map(p=>{
+              const r=results.find(x=>x.player_id===p.id);
+              return (
+                <div key={p.id} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'13px 16px',background:SC.surface,border:`1px solid ${SC.border}`,borderRadius:14}}>
+                  <span style={{fontWeight:700}}>{p.display_name}{r&&r.opened?(r.opened_with_joker?' 🃟':' 🏆'):''}{r&&r.was_turning?' 🔄':''}</span>
+                  <span style={{fontWeight:800,color:r&&r.penalty_points<0?SC.green:SC.text}}>{r?(r.penalty_points>0?'+':'')+r.penalty_points:'…'}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{color:SC.muted,fontSize:'0.72rem',textTransform:'uppercase',letterSpacing:'0.08em',marginTop:14}}>Totaalstand</div>
+          <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:4}}>
+            {[...players].sort((a,b)=>a.total_score-b.total_score).map(p=>(
+              <div key={p.id} style={{fontSize:'0.85rem',color:SC.muted,display:'flex',justifyContent:'space-between',padding:'2px 6px'}}>
+                <span>{p.display_name}</span><b style={{color:SC.text}}>{p.total_score}</b>
+              </div>
+            ))}
+          </div>
+          <Button onTap={()=>sb.functions.invoke('start-round',{body:{roomId}})} style={{marginTop:16}}>▶ Volgende ronde</Button>
+        </div>
       </div>
     );
   }
 
-  if(!hand) return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Hand laden…</div>;
+  if(!hand) return (
+    <div style={{minHeight:'100vh'}}>
+      <TopBar title="Super"/>
+      <div style={{minHeight:'calc(100vh - 68px)',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Hand laden…</div>
+    </div>
+  );
 
   const myTurn = round.turn_player_id===playerId;
   const cards = sortHand(hand.cards);
@@ -368,62 +491,73 @@ function Playing({roomId, playerId}){
   const canOpen = hand.cards.length===15 && groups.length>0 && ungrouped.length===1;
 
   return (
-    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',padding:'16px 12px 100px',gap:12}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div style={{fontSize:'0.75rem',color:SC.muted}}>Ronde {round.round_no}/{room.round_target}</div>
-        <div style={{fontSize:'0.75rem',color:myTurn?SC.green:SC.muted,fontWeight:700}}>{myTurn?'Jouw beurt':`Beurt: ${turnPlayer?turnPlayer.display_name:'…'}`}</div>
-      </div>
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',paddingBottom:100}}>
+      <TopBar title={`Ronde ${round.round_no}/${room.round_target}`}
+        sub={myTurn?'🟢 Jouw beurt':`Beurt: ${turnPlayer?turnPlayer.display_name:'…'}`}/>
 
-      <div style={{display:'flex',justifyContent:'center',gap:20,alignItems:'center'}}>
-        <div style={{textAlign:'center'}}>
-          <div style={{fontSize:'0.7rem',color:SC.muted,marginBottom:4}}>Trekstapel ({round.stock.length})</div>
-          <div onPointerDown={()=>myTurn&&hand.cards.length===14&&draw('stock')} style={{...TAP,width:52,height:74,borderRadius:8,background:'#1a1a28',border:'2px solid rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.3rem'}}>🂠</div>
-        </div>
-        <div style={{textAlign:'center'}}>
-          <div style={{fontSize:'0.7rem',color:SC.muted,marginBottom:4}}>Joker: {round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</div>
-          <div style={{width:52,height:74,borderRadius:8,background:'#161622',border:`2px solid ${SUIT_COLOR[round.open_card.suit]}`,display:'flex',alignItems:'center',justifyContent:'center',color:SUIT_COLOR[round.open_card.suit],fontWeight:800}}>{cardLabel(round.open_card)}</div>
-        </div>
-        <div style={{textAlign:'center'}}>
-          <div style={{fontSize:'0.7rem',color:SC.muted,marginBottom:4}}>Aflegstapel</div>
-          {topDiscard
-            ? <div onPointerDown={()=>myTurn&&hand.cards.length===14&&draw('discard')} style={{...TAP,width:52,height:74,borderRadius:8,background:'#161622',border:`2px solid ${cardColor(topDiscard)}`,display:'flex',alignItems:'center',justifyContent:'center',color:cardColor(topDiscard),fontWeight:800}}>{cardLabel(topDiscard)}</div>
-            : <div style={{width:52,height:74,borderRadius:8,border:'2px dashed rgba(255,255,255,0.15)'}}></div>}
-        </div>
-      </div>
-
-      {hand.is_turning && <div style={{textAlign:'center',color:SC.gold,fontSize:'0.8rem',fontWeight:700}}>🔄 Jij bent aan het draaien — je hand ligt klaar!</div>}
-
-      {groups.length>0 && (
-        <div style={{display:'flex',flexDirection:'column',gap:6}}>
-          <div style={{fontSize:'0.75rem',color:SC.muted}}>Jouw combinaties</div>
-          {groups.map((g,i)=>(
-            <div key={i} onPointerDown={()=>ungroup(i)} style={{...TAP,display:'flex',gap:4,padding:8,background:'rgba(126,201,106,0.1)',border:'1px solid rgba(126,201,106,0.3)',borderRadius:8}}>
-              {g.map(id=>{const c=cards.find(x=>x.id===id); return c?<Card key={id} card={c} small/>:null;})}
+      <div style={{padding:'18px 12px 10px',display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{display:'flex',justifyContent:'center',gap:22,alignItems:'flex-end'}}>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:'0.66rem',color:SC.muted,marginBottom:6,fontWeight:700}}>TREKSTAPEL · {round.stock.length}</div>
+            <CardBack onTap={()=>myTurn&&hand.cards.length===14&&draw('stock')}/>
+          </div>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:'0.66rem',color:SC.muted,marginBottom:6,fontWeight:700}}>JOKER</div>
+            <div style={{width:54,height:76,borderRadius:9,position:'relative',
+              background:'linear-gradient(155deg,#241839,#1a1030)',border:`1.5px solid ${SC.purple}`,
+              display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 0 16px ${SC.purple}55`,animation:'glowPulse 2.4s ease-in-out infinite'}}>
+              <span style={{color:SC.gold,fontWeight:800,fontSize:'1rem'}}>{round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</span>
             </div>
-          ))}
+          </div>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:'0.66rem',color:SC.muted,marginBottom:6,fontWeight:700}}>AFLEGSTAPEL</div>
+            {topDiscard
+              ? <Card card={topDiscard} onTap={()=>myTurn&&hand.cards.length===14&&draw('discard')}/>
+              : <div style={{width:54,height:76,borderRadius:9,border:`2px dashed ${SC.border}`}}></div>}
+          </div>
         </div>
-      )}
 
-      <div style={{display:'flex',flexDirection:'column',gap:6}}>
-        <div style={{fontSize:'0.75rem',color:SC.muted}}>Jouw hand ({hand.cards.length})</div>
-        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-          {ungrouped.map(c=>(
-            <Card key={c.id} card={c} selected={selected.includes(c.id)} onTap={()=>toggleSelect(c.id)}/>
-          ))}
+        {hand.is_turning && (
+          <div className="pop" style={{textAlign:'center',color:SC.gold,fontSize:'0.8rem',fontWeight:800,padding:'8px 14px',
+            borderRadius:12,background:'rgba(232,184,109,0.1)',border:'1px solid rgba(232,184,109,0.3)'}}>
+            🔄 Jij bent aan het draaien — je hand ligt klaar!
+          </div>
+        )}
+
+        {groups.length>0 && (
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            <div style={{fontSize:'0.7rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em'}}>Jouw combinaties</div>
+            {groups.map((g,i)=>(
+              <div key={i} onPointerDown={()=>ungroup(i)} style={{...TAP,display:'flex',gap:4,padding:9,
+                background:'rgba(126,201,106,0.12)',border:'1px solid rgba(126,201,106,0.35)',borderRadius:12}}>
+                {g.map(id=>{const c=cards.find(x=>x.id===id); return c?<Card key={id} card={c} small/>:null;})}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <div style={{fontSize:'0.7rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em'}}>Jouw hand ({hand.cards.length})</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8,padding:'4px 2px 14px'}}>
+            {ungrouped.map(c=>(
+              <Card key={c.id} card={c} selected={selected.includes(c.id)} onTap={()=>toggleSelect(c.id)}/>
+            ))}
+          </div>
         </div>
+
+        {err && <div style={{color:SC.red,fontSize:'0.8rem',textAlign:'center'}}>{err}</div>}
       </div>
 
-      {err && <div style={{color:SC.red,fontSize:'0.8rem',textAlign:'center'}}>{err}</div>}
-
-      <div style={{position:'fixed',bottom:0,left:0,right:0,padding:14,display:'flex',gap:8,justifyContent:'center',background:'linear-gradient(transparent,#07070f 30%)'}}>
+      <div style={{position:'fixed',bottom:0,left:0,right:0,padding:'14px 14px 20px',display:'flex',gap:8,justifyContent:'center',
+        background:'linear-gradient(transparent,#0a0714 35%)'}}>
         {myTurn && hand.cards.length===15 && selected.length>=3 && (
-          <Button color={SC.green} disabled={busy} onTap={makeGroup}>Groep maken</Button>
+          <Button color={SC.green} disabled={busy} onTap={makeGroup}>✓ Groep maken</Button>
         )}
         {myTurn && hand.cards.length===15 && (
           <Button color={SC.blue} disabled={busy||selected.length!==1} onTap={discard}>Leg af</Button>
         )}
         {myTurn && canOpen && (
-          <Button color={SC.gold} disabled={busy} onTap={openHand}>Open hand</Button>
+          <Button color={SC.gold} disabled={busy} onTap={openHand}>🏆 Open hand</Button>
         )}
       </div>
     </div>
