@@ -686,19 +686,21 @@ function Playing({roomId, playerId}){
         )}
 
         <div style={{display:'flex',flexDirection:'column',gap:2,marginTop:2}}>
-          <div style={{fontSize:'0.7rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',padding:'0 4px'}}>Jouw hand ({hand.cards.length})</div>
-          <div style={{display:'flex',justifyContent:'center',padding:'18px 4px 10px',position:'relative',minHeight:100}}>
-            {ungrouped.map((c,i)=>{
-              const n=ungrouped.length, mid=(n-1)/2, off=i-mid;
-              const angle=Math.max(-16,Math.min(16,off*(n>10?2.2:3.4)));
-              const shiftX=off*(n>10?16:22), shiftY=Math.abs(off)*2.4;
-              return (
-                <div key={c.id} style={{position:'relative',marginLeft:i===0?0:-18,zIndex:selected.includes(c.id)?50:i,
-                  transform:`translateY(${shiftY}px) rotate(${angle}deg)`,transition:'transform 0.15s'}}>
-                  <Card card={c} selected={selected.includes(c.id)} onTap={()=>toggleSelect(c.id)}/>
-                </div>
-              );
-            })}
+          <div style={{fontSize:'0.7rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',padding:'0 4px'}}>Jouw hand ({hand.cards.length}) {ungrouped.length>8 && <span style={{opacity:0.6}}>· sleep om te bladeren →</span>}</div>
+          <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',padding:'20px 0 14px'}}>
+            <div style={{display:'flex',padding:'0 24px',width:'max-content',margin:'0 auto',minWidth:'100%',justifyContent:ungrouped.length<=8?'center':'flex-start'}}>
+              {ungrouped.map((c,i)=>{
+                const n=ungrouped.length, mid=(n-1)/2, off=i-mid;
+                const angle=Math.max(-16,Math.min(16,off*(n>10?2.2:3.4)));
+                const shiftY=Math.abs(off)*2.4;
+                return (
+                  <div key={c.id} style={{position:'relative',marginLeft:i===0?0:-24,zIndex:selected.includes(c.id)?50:i,
+                    transform:`translateY(${shiftY}px) rotate(${angle}deg)`,transition:'transform 0.15s',flexShrink:0}}>
+                    <Card card={c} selected={selected.includes(c.id)} onTap={()=>toggleSelect(c.id)}/>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
