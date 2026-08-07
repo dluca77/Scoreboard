@@ -851,7 +851,7 @@ function Playing({roomId, playerId}){
   const opponents = players.filter(p=>p.id!==playerId);
 
   return (
-    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',paddingBottom:180,position:'relative'}}>
+    <div style={{display:'flex',flexDirection:'column',paddingBottom:66,position:'relative'}}>
       <div style={{position:'sticky',top:0,zIndex:50,display:'flex',alignItems:'center',gap:10,
         padding:'10px 14px',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
         background:'rgba(10,26,17,0.72)',borderBottom:`1px solid ${SC.border}`}}>
@@ -1006,19 +1006,21 @@ function Playing({roomId, playerId}){
         </div>
 
         {err && <div style={{color:SC.red,fontSize:'0.76rem',textAlign:'center'}}>{err}</div>}
-      </div>
 
-      <div style={{position:'fixed',bottom:56,left:0,right:0,zIndex:40,padding:'10px 14px 8px',display:'flex',flexDirection:'column',gap:6,alignItems:'center',
-        background:SC.feltDeep,borderTop:`1px solid ${SC.border}`}}>
-        {canOpen && (
-          <Button color={SC.gold} disabled={busy} onTap={openHand} style={{padding:'8px 16px',width:'100%',maxWidth:340}}>🏆 Open hand</Button>
-        )}
-        <div style={{display:'flex',gap:8,justifyContent:'center',width:'100%',maxWidth:340}}>
-          <Button color={SC.green} sub="Trek een kaart" disabled={!myTurn||hand.cards.length!==14||busy} onTap={()=>draw('stock')} style={{flex:1,padding:'8px 12px'}}>🂠 Trekken</Button>
-          <Button color={SC.red} sub="Gooi een kaart weg" disabled={!myTurn||hand.cards.length!==15||selected.length!==1||busy} onTap={discard} style={{flex:1,padding:'8px 12px'}}>✕ Afleggen</Button>
-          <button onPointerDown={autoGroup} disabled={busy||hand.cards.length<14} title="Automatisch groeperen" style={{...TAP,width:52,borderRadius:14,
-            border:`1.5px solid ${SC.gold}`,background:'rgba(212,175,90,0.14)',color:SC.gold,fontSize:'1.15rem',flexShrink:0,
-            opacity:(busy||hand.cards.length<14)?0.5:1,display:'flex',alignItems:'center',justifyContent:'center'}}>🪄</button>
+        {/* action buttons sit right after the hand in normal flow — the
+            page is short enough now that pinning them to the screen
+            bottom just left a large dead gap above them. */}
+        <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'center',marginTop:6,paddingTop:8,borderTop:`1px solid ${SC.border}`}}>
+          {canOpen && (
+            <Button color={SC.gold} disabled={busy} onTap={openHand} style={{padding:'8px 16px',width:'100%',maxWidth:340}}>🏆 Open hand</Button>
+          )}
+          <div style={{display:'flex',gap:8,justifyContent:'center',width:'100%',maxWidth:340}}>
+            <Button color={SC.green} sub="Trek een kaart" disabled={!myTurn||hand.cards.length!==14||busy} onTap={()=>draw('stock')} style={{flex:1,padding:'8px 12px'}}>🂠 Trekken</Button>
+            <Button color={SC.red} sub="Gooi een kaart weg" disabled={!myTurn||hand.cards.length!==15||selected.length!==1||busy} onTap={discard} style={{flex:1,padding:'8px 12px'}}>✕ Afleggen</Button>
+            <button onPointerDown={autoGroup} disabled={busy||hand.cards.length<14} title="Automatisch groeperen" style={{...TAP,width:52,borderRadius:14,
+              border:`1.5px solid ${SC.gold}`,background:'rgba(212,175,90,0.14)',color:SC.gold,fontSize:'1.15rem',flexShrink:0,
+              opacity:(busy||hand.cards.length<14)?0.5:1,display:'flex',alignItems:'center',justifyContent:'center'}}>🪄</button>
+          </div>
         </div>
       </div>
 
