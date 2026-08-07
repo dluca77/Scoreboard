@@ -15,7 +15,14 @@ export async function finalizeRound(
   hands: HandRow[],
   opts: { openerPlayerId?: string; openedWithJoker?: boolean; openerLooseCards?: Card[] },
 ) {
-  const jokerSpec: JokerSpec = { suit: round.joker_suit as JokerSpec['suit'], rank: round.joker_rank as JokerSpec['rank'] };
+  // joker_rank is stored as a string (see start-round), but card.rank is a
+  // number for numeric ranks — comparing them with the raw string would
+  // silently fail to recognize any numeric-rank joker card as a joker,
+  // both here (everyone's leftover-value scoring) and in isJokerCard below.
+  const jokerSpec: JokerSpec = {
+    suit: round.joker_suit as JokerSpec['suit'],
+    rank: (isNaN(Number(round.joker_rank)) ? round.joker_rank : Number(round.joker_rank)) as JokerSpec['rank'],
+  };
   const stockExhausted = !opts.openerPlayerId;
 
   const results: RoundResultInput[] = hands.map(h => {
