@@ -29,7 +29,10 @@ Deno.serve((req) => handle(req, async (req) => {
   const remaining = hand.cards.slice(0, idx).concat(hand.cards.slice(idx + 1));
   const discardedCard = hand.cards[idx];
 
-  const jokerSpec: JokerSpec = { suit: round.joker_suit, rank: round.joker_rank };
+  const jokerSpec: JokerSpec = {
+    suit: round.joker_suit,
+    rank: isNaN(Number(round.joker_rank)) ? round.joker_rank : Number(round.joker_rank),
+  };
   const isTurning = canFormCompleteHand(remaining, jokerSpec);
 
   const seatIdx = players.findIndex(p => p.id === caller.id);

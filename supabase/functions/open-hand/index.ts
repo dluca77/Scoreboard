@@ -26,7 +26,10 @@ Deno.serve((req) => handle(req, async (req) => {
   if (handErr) throw new HttpError(404, 'Hand not found');
   if (hand.cards.length !== 15) throw new HttpError(409, 'Draw a card before opening');
 
-  const jokerSpec: JokerSpec = { suit: round.joker_suit, rank: round.joker_rank };
+  const jokerSpec: JokerSpec = {
+    suit: round.joker_suit,
+    rank: isNaN(Number(round.joker_rank)) ? round.joker_rank : Number(round.joker_rank),
+  };
   const { valid, looseCards } = validateGrouping(hand.cards, groups, jokerSpec);
   if (!valid || looseCards.length !== 1 || looseCards[0].id !== discardCardId) {
     throw new HttpError(400, 'Invalid grouping — hand is not a valid complete meld with exactly one leftover card');

@@ -133,9 +133,20 @@ async function invokeFn(name, body){
     if(!error) return { data, error: null };
     const isNetworkError = !error.context || error.name==='FunctionsFetchError';
     if(isNetworkError && attempt===0){ await new Promise(r=>setTimeout(r,600)); continue; }
-    const message = isNetworkError
-      ? 'Geen verbinding met de server — controleer je internet en probeer opnieuw'
-      : ((data && data.error) || error.message);
+    if(isNetworkError){
+      return { data, error: { message: 'Geen verbinding met de server — controleer je internet en probeer opnieuw' } };
+    }
+    // On an HTTP error (FunctionsHttpError), supabase-js sets data to null
+    // and error.message to a generic "non-2xx status code" string — the
+    // actual reason our own Edge Function sent back is only in the raw
+    // response body (error.context), so read that to show something useful.
+    let message = error.message;
+    try{
+      if(error.context && typeof error.context.json==='function'){
+        const body2 = await error.context.json();
+        if(body2 && body2.error) message = body2.error;
+      }
+    }catch(e){}
     return { data, error: { message } };
   }
 }
