@@ -216,6 +216,36 @@ function minLooseValue(hand, jokerSpec) {
   return search(hand);
 }
 
+// Same search as minLooseValue, but also returns which melds it chose
+// (as arrays of card ids) instead of just the leftover value — used to
+// drive an "auto-group my hand" client action.
+function bestPartialGrouping(hand, jokerSpec) {
+  const memo = new Map();
+  function search(cards) {
+    if (cards.length === 0) return { loose: [], groups: [], value: 0 };
+    const key = cards.map(c => c.id).sort().join(',');
+    if (memo.has(key)) return memo.get(key);
+    const first = cards[0];
+    const rest = cards.slice(1);
+    let best = search(rest);
+    best = { loose: [first, ...best.loose], groups: best.groups, value: cardValue(first) + best.value };
+    const candidates = combinations(rest, 2).concat(combinations(rest, 3));
+    for (const combo of candidates) {
+      const group = [first, ...combo];
+      if (!isValidMeld(group, jokerSpec)) continue;
+      const usedIds = new Set(group.map(c => c.id));
+      const remaining = cards.filter(c => !usedIds.has(c.id));
+      const sub = search(remaining);
+      if (sub.value < best.value) {
+        best = { loose: sub.loose, groups: [group.map(c => c.id), ...sub.groups], value: sub.value };
+      }
+    }
+    memo.set(key, best);
+    return best;
+  }
+  return search(hand);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     SUITS, RANKS, SUIT_MULTIPLIER,

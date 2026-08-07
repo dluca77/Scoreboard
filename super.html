@@ -759,6 +759,27 @@ function Playing({roomId, playerId}){
     });
     setErr(canOpenNow ? '✅ Jouw hand kan compleet! Maak de groepen en open dan.' : 'Nog geen complete hand — blijf combineren.');
   }
+  // Finds the best grouping for you automatically — a full opening
+  // grouping (14 cards in melds + 1 leftover) if your hand allows it,
+  // otherwise the partial grouping that leaves the least point-value
+  // uncombined. You can still ungroup any tile afterward and redo it
+  // by hand, same as a manually-made group.
+  function autoGroup(){
+    if(hand.cards.length<14){ setErr('Trek eerst een kaart voor je kunt groeperen'); return; }
+    for(const leftover of hand.cards){
+      const rest = hand.cards.filter(c=>c.id!==leftover.id);
+      const grouping = window.findCompleteGrouping(rest, jokerSpec);
+      if(grouping){
+        setGroups(grouping); setSelected([]);
+        setErr('✅ Automatisch gegroepeerd — compleet! Tik Open hand.');
+        return;
+      }
+    }
+    const { groups: bestGroups } = window.bestPartialGrouping(hand.cards, jokerSpec);
+    if(bestGroups.length===0){ setErr('Geen combinaties gevonden in je hand.'); return; }
+    setGroups(bestGroups); setSelected([]);
+    setErr('Automatisch gegroepeerd — nog niet compleet, sleep of leg af om verder te komen.');
+  }
 
   // Pick a card up (drag to reorder) or tap it (select) — decided in
   // onCardUp by how far the pointer actually moved. While dragging, the
@@ -1033,12 +1054,21 @@ function Playing({roomId, playerId}){
           <Button color={SC.green} sub="Trek een kaart" disabled={!myTurn||hand.cards.length!==14||busy} onTap={()=>draw('stock')} style={{flex:1}}>🂠 Trekken</Button>
           <Button color={SC.red} sub="Gooi een kaart weg" disabled={!myTurn||hand.cards.length!==15||selected.length!==1||busy} onTap={discard} style={{flex:1}}>✕ Afleggen</Button>
         </div>
-        <button onPointerDown={checkCombinations} style={{...TAP,width:'100%',maxWidth:340,padding:'9px 14px',borderRadius:14,
-          border:`1.5px solid ${SC.border}`,background:'rgba(255,255,255,0.05)',color:SC.text,fontWeight:700,fontSize:'0.8rem',
-          display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1.25}}>
-          <span>🔍 Combinaties controleren</span>
-          <span style={{fontSize:'0.64rem',fontWeight:600,opacity:0.7,marginTop:1}}>Bekijk of je compleet bent</span>
-        </button>
+        <div style={{display:'flex',gap:6,width:'100%',maxWidth:340}}>
+          <button onPointerDown={autoGroup} disabled={busy||hand.cards.length<14} style={{...TAP,flex:1.3,padding:'9px 10px',borderRadius:14,
+            border:`1.5px solid ${SC.gold}`,background:'rgba(212,175,90,0.14)',color:SC.gold,fontWeight:700,fontSize:'0.8rem',
+            opacity:(busy||hand.cards.length<14)?0.5:1,
+            display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1.25}}>
+            <span>🪄 Automatisch groeperen</span>
+            <span style={{fontSize:'0.62rem',fontWeight:600,opacity:0.8,marginTop:1}}>Zelf nog aan te passen</span>
+          </button>
+          <button onPointerDown={checkCombinations} style={{...TAP,flex:1,padding:'9px 10px',borderRadius:14,
+            border:`1.5px solid ${SC.border}`,background:'rgba(255,255,255,0.05)',color:SC.text,fontWeight:700,fontSize:'0.8rem',
+            display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1.25}}>
+            <span>🔍 Controleren</span>
+            <span style={{fontSize:'0.62rem',fontWeight:600,opacity:0.7,marginTop:1}}>Compleet?</span>
+          </button>
+        </div>
       </div>
 
       {/* bottom nav bar, matching the reference layout — only Regels/Spelen are wired up */}
