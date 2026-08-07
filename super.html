@@ -104,6 +104,26 @@ function fanNearestIndex(x, n){
   return bestIdx;
 }
 
+// Groups are no longer a separate manual step — arranging your hand IS
+// the grouping action. Scans left to right and greedily claims the
+// longest valid meld (4 cards, then 3) starting at each position;
+// anything that doesn't fit into a contiguous run of 3+ stays loose.
+function detectAdjacentGroups(orderedCards, jokerSpec){
+  const groups = [];
+  let i = 0;
+  const n = orderedCards.length;
+  while(i < n){
+    let matched = null;
+    for(let len=Math.min(4, n-i); len>=3; len--){
+      const slice = orderedCards.slice(i, i+len);
+      if(window.isValidMeld(slice, jokerSpec)){ matched = slice; break; }
+    }
+    if(matched){ groups.push(matched.map(c=>c.id)); i += matched.length; }
+    else i += 1;
+  }
+  return groups;
+}
+
 // Wraps sb.functions.invoke with one automatic retry on a network-level
 // failure (dropped connection, not a server rejection) and translates
 // the generic fetch error into a clearer Dutch message.
@@ -531,13 +551,12 @@ function Playing({roomId, playerId}){
   const [round,setRound]=useState(null);
   const [players,setPlayers]=useState([]);
   const [hand,setHand]=useState(null); // own hand row
-  const [selected,setSelected]=useState([]); // selected card ids (ungrouped pool)
-  const [groups,setGroups]=useState([]); // array of arrays of card ids
+  const [selected,setSelected]=useState([]); // selected card ids, only meaningful for choosing a card to discard
   const [err,setErr]=useState('');
   const [busy,setBusy]=useState(false);
   const [results,setResults]=useState(null);
   const [rulesOpen,setRulesOpen]=useState(false);
-  const [fanOrder,setFanOrder]=useState([]); // manual drag order of your ungrouped card ids
+  const [fanOrder,setFanOrder]=useState([]); // manual drag order of your whole hand
   const [dragId,setDragId]=useState(null);
   const [dragDX,setDragDX]=useState(0);
   const [dragOverIndex,setDragOverIndex]=useState(null); // live insertion preview index
@@ -548,6 +567,15 @@ function Playing({roomId, playerId}){
   const fanWrapRef=useRef(null);
 
   const jokerSpec = round ? { suit: round.joker_suit, rank: isNaN(Number(round.joker_rank)) ? round.joker_rank : Number(round.joker_rank) } : null;
+
+  // Live grouping: whatever valid melds sit contiguous in your current
+  // fan order count as "grouped" — no separate select-and-confirm step.
+  const detectedGroups = useMemo(()=>{
+    if(!hand || !jokerSpec) return [];
+    const byId = {}; hand.cards.forEach(c=>{ byId[c.id]=c; });
+    const ordered = fanOrder.map(id=>byId[id]).filter(Boolean);
+    return detectAdjacentGroups(ordered, jokerSpec);
+  }, [fanOrder.join(','), hand && hand.cards.map(c=>c.id).join(','), jokerSpec && jokerSpec.suit, jokerSpec && jokerSpec.rank]);
 
   async function loadAll(){
     const { data:r } = await sb.from('rooms').select('*').eq('id',roomId).single();
@@ -579,7 +607,7 @@ function Playing({roomId, playerId}){
     return ()=>sb.removeChannel(ch);
   },[roomId]);
 
-  useEffect(()=>{ setSelected([]); setGroups([]); },[hand && hand.cards && hand.cards.length]);
+  useEffect(()=>{ setSelected([]); },[hand && hand.cards && hand.cards.length]);
 
   // If the card being dragged leaves the hand mid-drag (discarded/grouped
   // by the time this update lands), clear the stuck drag state instead of
@@ -610,19 +638,20 @@ function Playing({roomId, playerId}){
     };
   },[dragId, dragDX, dragOverIndex]);
 
-  // Keep a manual fan order for your ungrouped cards: preserve any drag
+  // Keep a manual fan order for your whole hand: preserve any drag
   // reordering the player already did, drop cards that left the hand
-  // (discarded/grouped), and append newly drawn cards at the end.
+  // (discarded), and append newly drawn cards at the end. Grouping is
+  // derived from this order (detectedGroups above), not tracked
+  // separately — there's nothing left to "un-group" but re-dragging.
   useEffect(()=>{
     if(!hand){ setFanOrder([]); return; }
-    const groupedNow = new Set(groups.reduce((a,g)=>a.concat(g),[]));
-    const idsNow = hand.cards.filter(c=>!groupedNow.has(c.id)).map(c=>c.id);
+    const idsNow = hand.cards.map(c=>c.id);
     setFanOrder(prev=>{
       const kept = prev.filter(id=>idsNow.indexOf(id)!==-1);
       const added = idsNow.filter(id=>kept.indexOf(id)===-1);
       return kept.concat(added);
     });
-  },[hand && hand.cards.map(c=>c.id).join(','), groups.map(g=>g.join('-')).join('|')]);
+  },[hand && hand.cards.map(c=>c.id).join(',')]);
 
   // "Tegen computer": the bot has no session of its own, so whenever it's
   // its turn, this human's client nudges the bot-move Edge Function to
@@ -730,55 +759,37 @@ function Playing({roomId, playerId}){
   );
 
   const myTurn = round.turn_player_id===playerId;
-  const cards = sortHand(hand.cards);
   const cardsById = {}; hand.cards.forEach(c=>{ cardsById[c.id]=c; });
-  const groupedIds = new Set(groups.reduce((a,g)=>a.concat(g),[]));
-  const ungroupedIds = fanOrder.filter(id=>!groupedIds.has(id) && cardsById[id]);
-  const ungrouped = ungroupedIds.map(id=>cardsById[id]);
+  const fanIds = fanOrder.filter(id=>cardsById[id]);
+  const groupedIdSet = new Set(detectedGroups.reduce((a,g)=>a.concat(g),[]));
+  const looseIds = fanIds.filter(id=>!groupedIdSet.has(id));
   const topDiscard = round.discard.length ? round.discard[round.discard.length-1] : null;
   const turnPlayer = players.find(p=>p.id===round.turn_player_id);
 
   function toggleSelect(id){
     setSelected(s=> s.includes(id) ? s.filter(x=>x!==id) : [...s,id]);
   }
-  function makeGroup(){
-    const cs = selected.map(id=>cards.find(c=>c.id===id)).filter(Boolean);
-    if(cs.length<3){ setErr('Selecteer minstens 3 kaarten'); return; }
-    if(!window.isValidMeld(cs, jokerSpec)){ setErr('Geen geldige set of reeks'); return; }
-    setGroups(g=>[...g, selected]);
-    setSelected([]); setErr('');
-  }
-  function ungroup(i){
-    setGroups(g=>g.filter((_,idx)=>idx!==i));
-  }
-  function checkCombinations(){
-    if(hand.cards.length!==15){ setErr('Trek eerst een kaart voor je kunt controleren'); return; }
-    const canOpenNow = hand.cards.some(leftover=>{
-      const rest = hand.cards.filter(c=>c.id!==leftover.id);
-      return window.findCompleteGrouping(rest, jokerSpec) !== null;
-    });
-    setErr(canOpenNow ? '✅ Jouw hand kan compleet! Maak de groepen en open dan.' : 'Nog geen complete hand — blijf combineren.');
-  }
-  // Finds the best grouping for you automatically — a full opening
-  // grouping (14 cards in melds + 1 leftover) if your hand allows it,
-  // otherwise the partial grouping that leaves the least point-value
-  // uncombined. You can still ungroup any tile afterward and redo it
-  // by hand, same as a manually-made group.
+  // Reorders your hand so the best grouping's cards sit next to each
+  // other — a full opening grouping if your hand allows it, otherwise
+  // the partial grouping that leaves the least point-value uncombined.
+  // Grouping itself then falls out of that arrangement automatically
+  // (detectedGroups above), same as if you'd dragged them there by hand
+  // — so you can still drag any card out and rearrange freely after.
   function autoGroup(){
     if(hand.cards.length<14){ setErr('Trek eerst een kaart voor je kunt groeperen'); return; }
     for(const leftover of hand.cards){
       const rest = hand.cards.filter(c=>c.id!==leftover.id);
       const grouping = window.findCompleteGrouping(rest, jokerSpec);
       if(grouping){
-        setGroups(grouping); setSelected([]);
-        setErr('✅ Automatisch gegroepeerd — compleet! Tik Open hand.');
+        setFanOrder([...grouping.flat(), leftover.id]); setSelected([]);
+        setErr('✅ Automatisch geschikt — compleet! Tik Open hand.');
         return;
       }
     }
-    const { groups: bestGroups } = window.bestPartialGrouping(hand.cards, jokerSpec);
+    const { groups: bestGroups, loose } = window.bestPartialGrouping(hand.cards, jokerSpec);
     if(bestGroups.length===0){ setErr('Geen combinaties gevonden in je hand.'); return; }
-    setGroups(bestGroups); setSelected([]);
-    setErr('Automatisch gegroepeerd — nog niet compleet, sleep of leg af om verder te komen.');
+    setFanOrder([...bestGroups.flat(), ...loose.map(c=>c.id)]); setSelected([]);
+    setErr('Automatisch geschikt — nog niet compleet, sleep verder of leg af.');
   }
 
   // Pick a card up (drag to reorder) or tap it (select) — decided in
@@ -787,7 +798,7 @@ function Playing({roomId, playerId}){
   function onCardDown(e, id, index){
     dragStartXRef.current = e.clientX;
     dragStartIndexRef.current = index;
-    dragStartSlotXRef.current = fanSlotX(index, ungroupedIds.length);
+    dragStartSlotXRef.current = fanSlotX(index, fanIds.length);
     setDragId(id); setDragDX(0); setDragOverIndex(index);
     try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(err){}
   }
@@ -795,7 +806,7 @@ function Playing({roomId, playerId}){
     if(dragId===null) return;
     const dx = (e.clientX - dragStartXRef.current) / (fanScale||1);
     setDragDX(dx);
-    const n = ungroupedIds.length;
+    const n = fanIds.length;
     setDragOverIndex(fanNearestIndex(dragStartSlotXRef.current+dx, n));
   }
   function onCardUp(){
@@ -829,18 +840,18 @@ function Playing({roomId, playerId}){
     if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
   }
   async function openHand(){
-    if(ungrouped.length!==1){ setErr('Precies 1 kaart moet overblijven om af te leggen'); return; }
+    if(looseIds.length!==1){ setErr('Precies 1 kaart moet overblijven om af te leggen'); return; }
     setBusy(true); setErr('');
-    const { data, error } = await invokeFn('open-hand',{roundId:round.id, groups, discardCardId:ungrouped[0].id});
+    const { data, error } = await invokeFn('open-hand',{roundId:round.id, groups:detectedGroups, discardCardId:looseIds[0]});
     setBusy(false);
     if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
   }
 
-  const canOpen = hand.cards.length===15 && groups.length>0 && ungrouped.length===1;
+  const canOpen = hand.cards.length===15 && detectedGroups.length>0 && looseIds.length===1;
   const opponents = players.filter(p=>p.id!==playerId);
 
   return (
-    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',paddingBottom:320,position:'relative'}}>
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',paddingBottom:180,position:'relative'}}>
       <div style={{position:'sticky',top:0,zIndex:50,display:'flex',alignItems:'center',gap:10,
         padding:'10px 14px',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
         background:'rgba(10,26,17,0.72)',borderBottom:`1px solid ${SC.border}`}}>
@@ -858,119 +869,89 @@ function Playing({roomId, playerId}){
       <div style={{position:'absolute',top:'34%',left:'50%',transform:'translate(-50%,-50%)',fontFamily:'Cinzel,serif',
         fontSize:'3.2rem',fontWeight:900,color:'rgba(212,175,90,0.05)',letterSpacing:'0.1em',pointerEvents:'none',whiteSpace:'nowrap'}}>SUPER</div>
 
-      <div style={{padding:'12px 12px 0',display:'flex',flexDirection:'column',gap:12,position:'relative',zIndex:1}}>
+      <div style={{padding:'8px 12px 0',display:'flex',flexDirection:'column',gap:8,position:'relative',zIndex:1}}>
 
-        {/* round & scores — single source of truth, no duplicate joker/score panels elsewhere */}
-        <div className="ornate-border" style={{borderRadius:14,padding:'8px 12px',background:'rgba(0,0,0,0.28)'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
-            <span style={{fontSize:'0.62rem',color:SC.muted,fontWeight:700}}>RONDE {round.round_no}/{room.round_target}</span>
-            <span style={{fontSize:'0.62rem',color:myTurn?SC.green:SC.gold,fontWeight:800}}>{myTurn?'🟢 Jouw beurt':`Beurt: ${turnPlayer?turnPlayer.display_name:'…'}`}</span>
+        {/* round + turn + scores + opponents (top-right), all in one compact panel */}
+        <div className="ornate-border" style={{borderRadius:14,padding:'7px 12px',background:'rgba(0,0,0,0.28)',display:'flex',justifyContent:'space-between',gap:8}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:'0.6rem',color:SC.muted,fontWeight:700,marginBottom:3}}>RONDE {round.round_no}/{room.round_target}</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'2px 12px'}}>
+              {players.map(p=>(
+                <div key={p.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:'0.7rem'}}>
+                  <span style={{width:6,height:6,borderRadius:'50%',background:round.turn_player_id===p.id?SC.green:SC.gold,flexShrink:0}}/>
+                  <span style={{color:SC.muted}}>{p.id===playerId?'Jij':p.display_name}</span>
+                  <b style={{color:SC.text}}>{p.total_score}</b>
+                </div>
+              ))}
+            </div>
           </div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:'2px 16px'}}>
-            {players.map(p=>(
-              <div key={p.id} style={{display:'flex',alignItems:'center',gap:5,fontSize:'0.72rem'}}>
-                <span style={{width:6,height:6,borderRadius:'50%',background:p.id===playerId?SC.green:SC.gold,flexShrink:0}}/>
-                <span style={{color:SC.muted}}>{p.display_name}{p.id===playerId?' (jij)':''}</span>
-                <b style={{color:SC.text}}>{p.total_score}</b>
-              </div>
-            ))}
-          </div>
+          {opponents.length>0 && (
+            <div style={{display:'flex',gap:6,flexShrink:0}}>
+              {opponents.map(p=>(
+                <div key={p.id} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
+                  outline:round.turn_player_id===p.id?`2px solid ${SC.gold}`:'none', borderRadius:10, padding:2}}>
+                  <Avatar id={p.id} name={p.display_name} size={26} isBot={p.is_bot} ring={round.turn_player_id===p.id?SC.gold:SC.border}/>
+                  <span style={{fontSize:'0.5rem',color:SC.muted,fontWeight:700,maxWidth:44,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* stock / joker / discard */}
+        {/* joker + stock/discard, one compact row */}
         {(()=>{
           const canDraw = myTurn && hand.cards.length===14 && !busy;
-          const glowStyle = canDraw ? {boxShadow:`0 0 0 3px ${SC.green}, 0 0 18px 2px ${SC.green}99`, animation:'glowPulse 1.6s ease-in-out infinite'} : {opacity:0.6};
+          const glowStyle = canDraw ? {boxShadow:`0 0 0 3px ${SC.green}, 0 0 14px 1px ${SC.green}99`, animation:'glowPulse 1.6s ease-in-out infinite'} : {opacity:0.75};
           return (
-        <>
-        <div style={{display:'flex',gap:10,alignItems:'stretch'}}>
-          <div className="ornate-border" style={{flex:1,borderRadius:14,padding:'8px 10px',background:'rgba(0,0,0,0.28)',display:'flex',alignItems:'center',gap:8}}>
-            <div style={{textAlign:'center'}}>
-              <div style={{fontSize:'0.56rem',color:SC.muted,fontWeight:700,marginBottom:3}}>OPEN KAART</div>
-              <Card card={round.open_card} small/>
-            </div>
+        <div className="ornate-border" style={{borderRadius:14,padding:'7px 10px',background:'rgba(0,0,0,0.28)',display:'flex',alignItems:'center',gap:14}}>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <Card card={round.open_card} small/>
             <div>
-              <div style={{fontSize:'0.6rem',color:SC.muted,fontWeight:700}}>JOKER IS</div>
-              <div style={{color:SC.gold,fontWeight:800,fontSize:'1rem'}}>{round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</div>
-              <div style={{fontSize:'0.56rem',color:SC.gold,fontWeight:700}}>×{{C:2,S:3,D:4,H:5}[round.open_card.suit]} vermenigvuldiger</div>
+              <div style={{fontSize:'0.54rem',color:SC.muted,fontWeight:700}}>JOKER</div>
+              <div style={{color:SC.gold,fontWeight:800,fontSize:'0.85rem'}}>{round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</div>
+              <div style={{fontSize:'0.5rem',color:SC.gold,fontWeight:700}}>×{{C:2,S:3,D:4,H:5}[round.open_card.suit]}</div>
             </div>
           </div>
-        </div>
-        <div style={{display:'flex',justifyContent:'center',gap:22,alignItems:'flex-end',marginTop:4}}>
+          <div style={{flex:1}}/>
           <div style={{textAlign:'center'}}>
-            <div style={{borderRadius:12, ...(canDraw?glowStyle:{opacity:0.75})}}>
-              <CardBack onTap={()=>canDraw&&draw('stock')} count={round.stock.length}/>
+            <div style={{borderRadius:10, ...(canDraw?glowStyle:{opacity:0.75})}}>
+              <CardBack onTap={()=>canDraw&&draw('stock')} count={round.stock.length} w={44} h={62}/>
             </div>
-            <div style={{fontSize:'0.6rem',color:canDraw?SC.green:SC.muted,marginTop:8,fontWeight:700,letterSpacing:'0.04em'}}>TREKSTAPEL</div>
           </div>
           <div style={{textAlign:'center'}}>
             {topDiscard
-              ? <div style={{borderRadius:12, ...(canDraw?glowStyle:{opacity:0.75})}}><Card card={topDiscard} onTap={()=>canDraw&&draw('discard')}/></div>
-              : <div style={{width:56,height:78,borderRadius:10,border:`2px dashed ${SC.border}`}}></div>}
-            <div style={{fontSize:'0.6rem',color:canDraw&&topDiscard?SC.green:SC.muted,marginTop:8,fontWeight:700,letterSpacing:'0.04em'}}>AFLEGSTAPEL</div>
+              ? <div style={{borderRadius:10, ...(canDraw?glowStyle:{opacity:0.75})}}><Card card={topDiscard} onTap={()=>canDraw&&draw('discard')} small/></div>
+              : <div style={{width:36,height:50,borderRadius:8,border:`2px dashed ${SC.border}`}}></div>}
           </div>
         </div>
-        </>
           );
         })()}
         {myTurn && hand.cards.length===14 && (
-          <div className="pop" style={{textAlign:'center',color:SC.green,fontSize:'0.72rem',fontWeight:700}}>
-            👆 Tik de trekstapel of aflegstapel om een kaart te trekken
-          </div>
+          <div className="pop" style={{textAlign:'center',color:SC.green,fontSize:'0.68rem',fontWeight:700}}>👆 Tik trekstapel/aflegstapel om te trekken</div>
         )}
-        {myTurn && hand.cards.length===15 && selected.length===0 && (
-          <div className="pop" style={{textAlign:'center',color:SC.red,fontSize:'0.72rem',fontWeight:700}}>
-            👆 Tik een kaart in je hand en dan "Afleggen" om te legen
-          </div>
+        {myTurn && hand.cards.length===15 && selected.length===0 && looseIds.length<=1 && (
+          <div className="pop" style={{textAlign:'center',color:SC.red,fontSize:'0.68rem',fontWeight:700}}>👆 Tik een kaart en dan "Afleggen"</div>
         )}
-
-        {/* opponents row — comes after the stock/discard piles, like the reference table layout */}
-        {opponents.length>0 && (
-          <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
-            {opponents.map(p=>(
-              <div key={p.id} className="ornate-border" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
-                padding:'8px 10px',borderRadius:14,background:'rgba(0,0,0,0.25)',
-                outline:round.turn_player_id===p.id?`2px solid ${SC.gold}`:'none'}}>
-                <Avatar id={p.id} name={p.display_name} size={38} isBot={p.is_bot} ring={round.turn_player_id===p.id?SC.gold:SC.border}/>
-                <span style={{fontSize:'0.68rem',fontWeight:700,color:SC.text,maxWidth:70,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name}</span>
-                <CardBack w={26} h={36}/>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* your own seat, right above the hand */}
-        <div className="ornate-border" style={{display:'flex',alignItems:'center',gap:10,padding:'7px 12px',borderRadius:14,
-          background:myTurn?'rgba(57,168,96,0.14)':'rgba(0,0,0,0.25)', border:myTurn?`1px solid ${SC.green}`:undefined}}>
-          <Avatar id={playerId} name="Jij" size={32} ring={myTurn?SC.green:SC.border}/>
-          <div style={{fontWeight:800,fontSize:'0.8rem',color:SC.text,flex:1}}>Jij {myTurn && <span style={{color:SC.green}}>(aan de beurt)</span>}</div>
-          <div style={{display:'flex',alignItems:'center',gap:4,color:SC.muted,fontSize:'0.72rem',fontWeight:700}}>🂠 {hand.cards.length}</div>
-        </div>
 
         {hand.is_turning && (
-          <div className="pop" style={{textAlign:'center',color:SC.gold,fontSize:'0.8rem',fontWeight:800,padding:'8px 14px',
-            borderRadius:12,background:'rgba(212,175,90,0.12)',border:'1px solid rgba(212,175,90,0.35)'}}>
+          <div className="pop" style={{textAlign:'center',color:SC.gold,fontSize:'0.74rem',fontWeight:800,padding:'6px 12px',
+            borderRadius:10,background:'rgba(212,175,90,0.12)',border:'1px solid rgba(212,175,90,0.35)'}}>
             🔄 Jij bent aan het draaien — je hand ligt klaar!
           </div>
         )}
 
-        {groups.length>0 && (
-          <div style={{display:'flex',flexDirection:'column',gap:6}}>
-            <div style={{fontSize:'0.7rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em'}}>Jouw combinaties</div>
-            {groups.map((g,i)=>(
-              <div key={i} onPointerDown={()=>ungroup(i)} style={{...TAP,display:'flex',gap:4,padding:9,
-                background:'rgba(57,168,96,0.16)',border:'1px solid rgba(57,168,96,0.4)',borderRadius:12}}>
-                {g.map(id=>{const c=cards.find(x=>x.id===id); return c?<Card key={id} card={c} small/>:null;})}
-              </div>
-            ))}
+        <div style={{display:'flex',flexDirection:'column',gap:0,marginTop:0}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'0 4px'}}>
+            <span style={{fontSize:'0.66rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em'}}>
+              Hand ({hand.cards.length}) <span style={{opacity:0.6,textTransform:'none',letterSpacing:0}}>· sleep om te groeperen</span>
+            </span>
+            {hand.cards.length===15 && (
+              <span style={{fontSize:'0.66rem',fontWeight:700,color:looseIds.length===1?SC.green:SC.muted}}>
+                {looseIds.length===1?'✅ Compleet':`${detectedGroups.length} groep(en), ${looseIds.length} los`}
+              </span>
+            )}
           </div>
-        )}
-
-        <div style={{display:'flex',flexDirection:'column',gap:2,marginTop:2}}>
-          <div style={{fontSize:'0.7rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',padding:'0 4px'}}>
-            Jouw hand ({hand.cards.length}) <span style={{opacity:0.6,textTransform:'none',letterSpacing:0}}>· tik = selecteren, sleep = verplaatsen</span>
-          </div>
-          <div ref={fanWrapRef} style={{position:'relative',width:'100%',height:118*fanScale,marginTop:4}}>
+          <div ref={fanWrapRef} style={{position:'relative',width:'100%',height:126*fanScale,marginTop:2}}>
             <div style={{position:'absolute',left:'50%',top:0,transform:`translateX(-50%) scale(${fanScale})`,transformOrigin:'top center',
               width:1,height:1}}>
               {(()=>{
@@ -978,12 +959,13 @@ function Playing({roomId, playerId}){
                 // point well below the cards, like a hand of cards held from
                 // below — the arc, and the horizontal spread, both fall out of
                 // that rotation instead of being faked with separate offsets.
-                const baseIds = dragId!==null ? ungroupedIds.filter(id=>id!==dragId) : ungroupedIds;
+                const baseIds = dragId!==null ? fanIds.filter(id=>id!==dragId) : fanIds;
                 const displayIds = dragId!==null
                   ? [...baseIds.slice(0,dragOverIndex), dragId, ...baseIds.slice(dragOverIndex)]
-                  : ungroupedIds;
+                  : fanIds;
                 const n=displayIds.length, mid=(n-1)/2;
                 const cardW=56, cardH=78;
+                const GROUP_COLORS=[SC.green,SC.blue,SC.gold,SC.purple];
                 return displayIds.map((id,i)=>{
                   const c=cardsById[id];
                   if(!c) return null;
@@ -997,9 +979,12 @@ function Playing({roomId, playerId}){
                   const transform = isDragging
                     ? `translateX(${dragStartSlotXRef.current+dragDX}px) scale(1.12)`
                     : `rotate(${fanAngleForOffset(off, n)}deg)`;
+                  const groupIdx = detectedGroups.findIndex(g=>g.includes(id));
+                  const isLoose = groupIdx===-1;
+                  const markerColor = isLoose ? (looseIds.length===1?SC.gold:SC.red) : GROUP_COLORS[groupIdx%GROUP_COLORS.length];
                   return (
                     <div key={id}
-                      onPointerDown={e=>onCardDown(e,id,ungroupedIds.indexOf(id))}
+                      onPointerDown={e=>onCardDown(e,id,fanIds.indexOf(id))}
                       onPointerMove={onCardMove}
                       onPointerUp={onCardUp}
                       onPointerCancel={onCardUp}
@@ -1010,6 +995,8 @@ function Playing({roomId, playerId}){
                         transition:isDragging?'none':'transform 0.2s cubic-bezier(.2,.8,.3,1)', touchAction:'none',
                         filter:isDragging?'drop-shadow(0 10px 14px rgba(0,0,0,0.5))':'none'}}>
                       <Card card={c} selected={selected.includes(id)}/>
+                      <div style={{position:'absolute',left:'50%',bottom:-3,transform:'translateX(-50%)',width:20,height:4,
+                        borderRadius:2,background:markerColor}}/>
                     </div>
                   );
                 });
@@ -1018,56 +1005,20 @@ function Playing({roomId, playerId}){
           </div>
         </div>
 
-        {err && <div style={{color:SC.red,fontSize:'0.8rem',textAlign:'center'}}>{err}</div>}
-
-        {/* always-visible scoring reference, like a real table's rulecard */}
-        <div style={{display:'flex',gap:6,marginTop:2}}>
-          {[['Normaal openen','-100',SC.green],['Met joker','-500',SC.red],['Aan het draaien','+500',SC.gold]].map(([label,val,color])=>(
-            <div key={label} className="ornate-border" style={{flex:1,borderRadius:10,padding:'6px 4px',textAlign:'center',background:'rgba(0,0,0,0.22)'}}>
-              <div style={{fontSize:'0.56rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.02em'}}>{label}</div>
-              <div style={{fontSize:'0.78rem',fontWeight:800,color}}>{val}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{display:'flex',gap:6,justifyContent:'center',paddingBottom:4}}>
-          {[['♣','×2',SUIT_COLOR.C],['♠','×3',SUIT_COLOR.S],['♦','×4',SUIT_COLOR.D],['♥','×5',SUIT_COLOR.H]].map(([s,m,c])=>(
-            <div key={s} style={{fontSize:'0.68rem',color:c,fontWeight:800,display:'flex',alignItems:'center',gap:2}}>
-              <span style={{fontSize:'0.85rem'}}>{s}</span>{m}
-            </div>
-          ))}
-        </div>
+        {err && <div style={{color:SC.red,fontSize:'0.76rem',textAlign:'center'}}>{err}</div>}
       </div>
 
-      <div style={{position:'fixed',bottom:56,left:0,right:0,zIndex:40,padding:'14px 14px 10px',display:'flex',flexDirection:'column',gap:8,alignItems:'center',
+      <div style={{position:'fixed',bottom:56,left:0,right:0,zIndex:40,padding:'10px 14px 8px',display:'flex',flexDirection:'column',gap:6,alignItems:'center',
         background:SC.feltDeep,borderTop:`1px solid ${SC.border}`}}>
-        {myTurn && hand.cards.length===15 && (
-          <div style={{display:'flex',gap:8,justifyContent:'center'}}>
-            {selected.length>=3 && (
-              <Button color={SC.blue} disabled={busy} onTap={makeGroup} style={{padding:'9px 16px'}}>✓ Groep maken</Button>
-            )}
-            {canOpen && (
-              <Button color={SC.gold} disabled={busy} onTap={openHand} style={{padding:'9px 16px'}}>🏆 Open hand</Button>
-            )}
-          </div>
+        {canOpen && (
+          <Button color={SC.gold} disabled={busy} onTap={openHand} style={{padding:'8px 16px',width:'100%',maxWidth:340}}>🏆 Open hand</Button>
         )}
         <div style={{display:'flex',gap:8,justifyContent:'center',width:'100%',maxWidth:340}}>
-          <Button color={SC.green} sub="Trek een kaart" disabled={!myTurn||hand.cards.length!==14||busy} onTap={()=>draw('stock')} style={{flex:1}}>🂠 Trekken</Button>
-          <Button color={SC.red} sub="Gooi een kaart weg" disabled={!myTurn||hand.cards.length!==15||selected.length!==1||busy} onTap={discard} style={{flex:1}}>✕ Afleggen</Button>
-        </div>
-        <div style={{display:'flex',gap:6,width:'100%',maxWidth:340}}>
-          <button onPointerDown={autoGroup} disabled={busy||hand.cards.length<14} style={{...TAP,flex:1.3,padding:'9px 10px',borderRadius:14,
-            border:`1.5px solid ${SC.gold}`,background:'rgba(212,175,90,0.14)',color:SC.gold,fontWeight:700,fontSize:'0.8rem',
-            opacity:(busy||hand.cards.length<14)?0.5:1,
-            display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1.25}}>
-            <span>🪄 Automatisch groeperen</span>
-            <span style={{fontSize:'0.62rem',fontWeight:600,opacity:0.8,marginTop:1}}>Zelf nog aan te passen</span>
-          </button>
-          <button onPointerDown={checkCombinations} style={{...TAP,flex:1,padding:'9px 10px',borderRadius:14,
-            border:`1.5px solid ${SC.border}`,background:'rgba(255,255,255,0.05)',color:SC.text,fontWeight:700,fontSize:'0.8rem',
-            display:'flex',flexDirection:'column',alignItems:'center',lineHeight:1.25}}>
-            <span>🔍 Controleren</span>
-            <span style={{fontSize:'0.62rem',fontWeight:600,opacity:0.7,marginTop:1}}>Compleet?</span>
-          </button>
+          <Button color={SC.green} sub="Trek een kaart" disabled={!myTurn||hand.cards.length!==14||busy} onTap={()=>draw('stock')} style={{flex:1,padding:'8px 12px'}}>🂠 Trekken</Button>
+          <Button color={SC.red} sub="Gooi een kaart weg" disabled={!myTurn||hand.cards.length!==15||selected.length!==1||busy} onTap={discard} style={{flex:1,padding:'8px 12px'}}>✕ Afleggen</Button>
+          <button onPointerDown={autoGroup} disabled={busy||hand.cards.length<14} title="Automatisch groeperen" style={{...TAP,width:52,borderRadius:14,
+            border:`1.5px solid ${SC.gold}`,background:'rgba(212,175,90,0.14)',color:SC.gold,fontSize:'1.15rem',flexShrink:0,
+            opacity:(busy||hand.cards.length<14)?0.5:1,display:'flex',alignItems:'center',justifyContent:'center'}}>🪄</button>
         </div>
       </div>
 
