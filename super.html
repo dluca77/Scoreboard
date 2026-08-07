@@ -909,30 +909,30 @@ function Playing({roomId, playerId}){
           )}
         </div>
 
-        {/* joker + stock/discard, one compact row */}
+        {/* joker + stock/discard, floating in the open on the felt — no
+            panel/box, the discard sits half tucked under the stock at an
+            angle like it was actually tossed there. */}
         {(()=>{
           const canDraw = myTurn && hand.cards.length===14 && !busy;
-          const glowStyle = canDraw ? {boxShadow:`0 0 0 3px ${SC.green}, 0 0 14px 1px ${SC.green}99`, animation:'glowPulse 1.6s ease-in-out infinite'} : {opacity:0.75};
+          const glowStyle = canDraw ? {boxShadow:`0 0 0 3px ${SC.green}, 0 0 14px 1px ${SC.green}99`, animation:'glowPulse 1.6s ease-in-out infinite'} : {};
           return (
-        <div className="ornate-border" style={{borderRadius:14,padding:'7px 10px',background:'rgba(0,0,0,0.28)',display:'flex',alignItems:'center',gap:14}}>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'6px 0 10px'}}>
           <div style={{display:'flex',alignItems:'center',gap:6}}>
-            <Card card={round.open_card} small/>
-            <div>
-              <div style={{fontSize:'0.54rem',color:SC.muted,fontWeight:700}}>JOKER</div>
-              <div style={{color:SC.gold,fontWeight:800,fontSize:'0.85rem'}}>{round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</div>
-              <div style={{fontSize:'0.5rem',color:SC.gold,fontWeight:700}}>×{{C:2,S:3,D:4,H:5}[round.open_card.suit]}</div>
-            </div>
+            <span style={{fontSize:'0.6rem',color:SC.muted,fontWeight:700}}>JOKER</span>
+            <span style={{color:SC.gold,fontWeight:800,fontSize:'0.9rem'}}>{round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</span>
+            <span style={{fontSize:'0.56rem',color:SC.gold,fontWeight:700}}>×{{C:2,S:3,D:4,H:5}[round.open_card.suit]}</span>
           </div>
-          <div style={{flex:1}}/>
-          <div style={{textAlign:'center'}}>
-            <div style={{borderRadius:10, ...(canDraw?glowStyle:{opacity:0.75})}}>
-              <CardBack onTap={()=>canDraw&&draw('stock')} count={round.stock.length} w={44} h={62}/>
+          <div style={{position:'relative',width:90,height:96}}>
+            <div style={{position:'absolute',left:'50%',top:18,transform:'translateX(-50%) rotate(90deg)',borderRadius:10,zIndex:1,
+              ...(canDraw&&topDiscard?glowStyle:{opacity:0.85})}}>
+              {topDiscard
+                ? <Card card={topDiscard} onTap={()=>canDraw&&draw('discard')}/>
+                : <div style={{width:56,height:78,borderRadius:10,border:`2px dashed ${SC.border}`}}></div>}
             </div>
-          </div>
-          <div style={{textAlign:'center'}}>
-            {topDiscard
-              ? <div style={{borderRadius:10, ...(canDraw?glowStyle:{opacity:0.75})}}><Card card={topDiscard} onTap={()=>canDraw&&draw('discard')} small/></div>
-              : <div style={{width:36,height:50,borderRadius:8,border:`2px dashed ${SC.border}`}}></div>}
+            <div style={{position:'absolute',left:'50%',top:0,transform:'translateX(-50%)',borderRadius:10,zIndex:2,
+              ...(canDraw?glowStyle:{})}}>
+              <CardBack onTap={()=>canDraw&&draw('stock')} count={round.stock.length}/>
+            </div>
           </div>
         </div>
           );
