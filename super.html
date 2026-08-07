@@ -80,6 +80,22 @@ function sortHand(cards){
   });
 }
 
+// Wraps sb.functions.invoke with one automatic retry on a network-level
+// failure (dropped connection, not a server rejection) and translates
+// the generic fetch error into a clearer Dutch message.
+async function invokeFn(name, body){
+  for(let attempt=0; attempt<2; attempt++){
+    const { data, error } = await sb.functions.invoke(name, { body });
+    if(!error) return { data, error: null };
+    const isNetworkError = !error.context || error.name==='FunctionsFetchError';
+    if(isNetworkError && attempt===0){ await new Promise(r=>setTimeout(r,600)); continue; }
+    const message = isNetworkError
+      ? 'Geen verbinding met de server — controleer je internet en probeer opnieuw'
+      : ((data && data.error) || error.message);
+    return { data, error: { message } };
+  }
+}
+
 function loadDevice(){
   try{ return JSON.parse(localStorage.getItem('super_device')||'null'); }catch(e){ return null; }
 }
@@ -251,7 +267,7 @@ function Home({onEntered}){
   async function createRoom(){
     if(!name.trim()) return setErr('Vul je naam in');
     setBusy(true); setErr('');
-    const { data, error } = await sb.functions.invoke('create-room', { body:{ displayName:name.trim(), roundTarget:Number(roundTarget)||8 } });
+    const { data, error } = await invokeFn('create-room', { displayName:name.trim(), roundTarget:Number(roundTarget)||8 });
     setBusy(false);
     if(error||data.error) return setErr((data&&data.error)||error.message);
     saveDevice({ roomId:data.room.id, playerId:data.player.id });
@@ -261,7 +277,7 @@ function Home({onEntered}){
     if(!name.trim()) return setErr('Vul je naam in');
     if(!code.trim()) return setErr('Vul de room-code in');
     setBusy(true); setErr('');
-    const { data, error } = await sb.functions.invoke('join-room', { body:{ code:code.trim().toUpperCase(), displayName:name.trim() } });
+    const { data, error } = await invokeFn('join-room', { code:code.trim().toUpperCase(), displayName:name.trim() });
     setBusy(false);
     if(error||data.error) return setErr((data&&data.error)||error.message);
     saveDevice({ roomId:data.room.id, playerId:data.player.id });
@@ -269,7 +285,7 @@ function Home({onEntered}){
   }
   async function playVsComputer(){
     setBusy(true); setErr('');
-    const { data, error } = await sb.functions.invoke('create-bot-room', { body:{ displayName:(name.trim()||'Speler'), roundTarget:Number(roundTarget)||8 } });
+    const { data, error } = await invokeFn('create-bot-room', { displayName:(name.trim()||'Speler'), roundTarget:Number(roundTarget)||8 });
     setBusy(false);
     if(error||(data&&data.error)) return setErr((data&&data.error)||error.message);
     saveDevice({ roomId:data.room.id, playerId:data.player.id });
@@ -394,7 +410,7 @@ function Lobby({roomId, playerId, onStarted}){
 
   async function start(){
     setBusy(true); setErr('');
-    const { data, error } = await sb.functions.invoke('start-round', { body:{ roomId } });
+    const { data, error } = await invokeFn('start-round', { roomId });
     setBusy(false);
     if(error||(data&&data.error)) return setErr((data&&data.error)||error.message);
   }
@@ -565,7 +581,7 @@ function Playing({roomId, playerId}){
     if(!bot || round.turn_player_id!==bot.id) return;
     let cancelled = false;
     const t = setTimeout(()=>{
-      if(!cancelled) sb.functions.invoke('bot-move', { body:{ roundId: round.id } }).catch(()=>{});
+      if(!cancelled) invokeFn('bot-move', { roundId: round.id }).catch(()=>{});
     }, 900);
     return ()=>{ cancelled = true; clearTimeout(t); };
   },[round && round.id, round && round.turn_player_id, round && round.phase, players.length]);
@@ -648,7 +664,7 @@ function Playing({roomId, playerId}){
               </div>
             ))}
           </div>
-          <Button onTap={()=>sb.functions.invoke('start-round',{body:{roomId}})} style={{marginTop:16}}>▶ Volgende ronde</Button>
+          <Button onTap={()=>invokeFn('start-round',{roomId})} style={{marginTop:16}}>▶ Volgende ronde</Button>
         </div>
       </div>
     );
@@ -730,21 +746,21 @@ function Playing({roomId, playerId}){
 
   async function draw(source){
     setBusy(true); setErr('');
-    const { data, error } = await sb.functions.invoke('draw-card',{body:{roundId:round.id, source}});
+    const { data, error } = await invokeFn('draw-card',{roundId:round.id, source});
     setBusy(false);
     if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
   }
   async function discard(){
     if(selected.length!==1){ setErr('Selecteer precies 1 kaart om af te leggen'); return; }
     setBusy(true); setErr('');
-    const { data, error } = await sb.functions.invoke('discard-card',{body:{roundId:round.id, cardId:selected[0]}});
+    const { data, error } = await invokeFn('discard-card',{roundId:round.id, cardId:selected[0]});
     setBusy(false);
     if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
   }
   async function openHand(){
     if(ungrouped.length!==1){ setErr('Precies 1 kaart moet overblijven om af te leggen'); return; }
     setBusy(true); setErr('');
-    const { data, error } = await sb.functions.invoke('open-hand',{body:{roundId:round.id, groups, discardCardId:ungrouped[0].id}});
+    const { data, error } = await invokeFn('open-hand',{roundId:round.id, groups, discardCardId:ungrouped[0].id});
     setBusy(false);
     if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
   }
