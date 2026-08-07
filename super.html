@@ -728,7 +728,11 @@ function Playing({roomId, playerId}){
     );
   }
 
-  if(!round || room.status==='lobby'){
+  // A round that just finished flips room.status back to 'lobby' so
+  // start-round can be called again for the next one — but that must
+  // not skip straight past the round's own results screen (below).
+  // Only redirect to the lobby when there's genuinely no round to show.
+  if(!round){
     return <Lobby roomId={roomId} playerId={playerId} onStarted={loadAll}/>;
   }
 
