@@ -862,7 +862,7 @@ function Playing({roomId, playerId}){
   const opponents = players.filter(p=>p.id!==playerId);
 
   return (
-    <div style={{display:'flex',flexDirection:'column',paddingBottom:66,position:'relative'}}>
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',paddingBottom:66,position:'relative'}}>
       <div style={{position:'sticky',top:0,zIndex:50,display:'flex',alignItems:'center',gap:10,
         padding:'10px 14px',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
         background:'rgba(10,26,17,0.72)',borderBottom:`1px solid ${SC.border}`}}>
@@ -880,7 +880,7 @@ function Playing({roomId, playerId}){
       <div style={{position:'absolute',top:'34%',left:'50%',transform:'translate(-50%,-50%)',fontFamily:'Cinzel,serif',
         fontSize:'3.2rem',fontWeight:900,color:'rgba(212,175,90,0.05)',letterSpacing:'0.1em',pointerEvents:'none',whiteSpace:'nowrap'}}>SUPER</div>
 
-      <div style={{padding:'8px 12px 0',display:'flex',flexDirection:'column',gap:8,position:'relative',zIndex:1}}>
+      <div style={{padding:'8px 12px 0',display:'flex',flexDirection:'column',gap:8,position:'relative',zIndex:1,flex:1}}>
 
         {/* round + turn + scores + opponents (top-right), all in one compact panel */}
         <div className="ornate-border" style={{borderRadius:14,padding:'7px 12px',background:'rgba(0,0,0,0.28)',display:'flex',justifyContent:'space-between',gap:8}}>
@@ -951,7 +951,12 @@ function Playing({roomId, playerId}){
           </div>
         )}
 
-        <div style={{display:'flex',flexDirection:'column',gap:0,marginTop:0}}>
+        {/* everything from here down (hand, error, action buttons) is
+            pushed to the bottom of the screen as one group, like a real
+            card table — the auto top margin absorbs whatever empty
+            space is left above it instead of leaving it as a dead gap
+            underneath. */}
+        <div style={{display:'flex',flexDirection:'column',gap:0,marginTop:'auto'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'0 4px'}}>
             <span style={{fontSize:'0.66rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.04em'}}>
               Hand ({hand.cards.length}) <span style={{opacity:0.6,textTransform:'none',letterSpacing:0}}>· sleep om te groeperen</span>
