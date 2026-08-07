@@ -916,14 +916,14 @@ function Playing({roomId, playerId}){
           const canDraw = myTurn && hand.cards.length===14 && !busy;
           const glowStyle = canDraw ? {boxShadow:`0 0 0 3px ${SC.green}, 0 0 14px 1px ${SC.green}99`, animation:'glowPulse 1.6s ease-in-out infinite'} : {};
           return (
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'6px 0 10px'}}>
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:6,minHeight:120}}>
           <div style={{display:'flex',alignItems:'center',gap:6}}>
             <span style={{fontSize:'0.6rem',color:SC.muted,fontWeight:700}}>JOKER</span>
             <span style={{color:SC.gold,fontWeight:800,fontSize:'0.9rem'}}>{round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</span>
             <span style={{fontSize:'0.56rem',color:SC.gold,fontWeight:700}}>×{{C:2,S:3,D:4,H:5}[round.open_card.suit]}</span>
           </div>
-          <div style={{position:'relative',width:90,height:96}}>
-            <div style={{position:'absolute',left:'50%',top:18,transform:'translateX(-50%) rotate(90deg)',borderRadius:10,zIndex:1,
+          <div style={{position:'relative',width:120,height:110}}>
+            <div style={{position:'absolute',left:'50%',top:34,transform:'translateX(-50%) rotate(90deg)',borderRadius:10,zIndex:1,
               ...(canDraw&&topDiscard?glowStyle:{opacity:0.85})}}>
               {topDiscard
                 ? <Card card={topDiscard} onTap={()=>canDraw&&draw('discard')}/>
