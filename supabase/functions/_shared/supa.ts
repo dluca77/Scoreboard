@@ -60,6 +60,8 @@ export async function handle(req: Request, fn: (req: Request) => Promise<Respons
   } catch (e) {
     const status = e instanceof HttpError ? e.status : 500;
     console.error(e);
-    return json({ error: e instanceof Error ? e.message : String(e) }, status);
+    const res = json({ error: e instanceof Error ? e.message : String(e) }, status);
+    res.headers.set('Access-Control-Allow-Origin', '*');
+    return res;
   }
 }

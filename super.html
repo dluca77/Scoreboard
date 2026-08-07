@@ -488,6 +488,7 @@ function Playing({roomId, playerId}){
   const [fanOrder,setFanOrder]=useState([]); // manual drag order of your ungrouped card ids
   const [dragId,setDragId]=useState(null);
   const [dragDX,setDragDX]=useState(0);
+  const [dragOverIndex,setDragOverIndex]=useState(null); // live insertion preview index
   const [fanScale,setFanScale]=useState(1);
   const dragStartXRef=useRef(0);
   const dragStartIndexRef=useRef(0);
@@ -668,38 +669,39 @@ function Playing({roomId, playerId}){
   }
 
   // Pick a card up (drag to reorder) or tap it (select) — decided in
-  // onCardUp by how far the pointer actually moved.
+  // onCardUp by how far the pointer actually moved. While dragging, the
+  // other cards live-reflow to preview exactly where the card will land.
   function onCardDown(e, id, index){
     dragStartXRef.current = e.clientX;
     dragStartIndexRef.current = index;
-    setDragId(id); setDragDX(0);
+    setDragId(id); setDragDX(0); setDragOverIndex(index);
     try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(err){}
   }
   function onCardMove(e){
     if(dragId===null) return;
-    setDragDX((e.clientX - dragStartXRef.current) / (fanScale||1));
+    const dx = (e.clientX - dragStartXRef.current) / (fanScale||1);
+    setDragDX(dx);
+    const step=32;
+    const shift = Math.round(dx/step);
+    const from = dragStartIndexRef.current;
+    const maxIndex = Math.max(0, ungroupedIds.length-1);
+    setDragOverIndex(Math.max(0, Math.min(maxIndex, from+shift)));
   }
   function onCardUp(){
     if(dragId===null) return;
     if(Math.abs(dragDX) < 6){
       toggleSelect(dragId);
-    } else {
-      const step=32;
-      const shift = Math.round(dragDX/step);
-      const from = dragStartIndexRef.current;
-      const to = Math.max(0, Math.min(ungroupedIds.length-1, from+shift));
-      if(to!==from){
-        setFanOrder(prev=>{
-          const arr=[...prev];
-          const idx=arr.indexOf(dragId);
-          if(idx===-1) return prev;
-          arr.splice(idx,1);
-          arr.splice(to,0,dragId);
-          return arr;
-        });
-      }
+    } else if(dragOverIndex!==null){
+      setFanOrder(prev=>{
+        const arr=[...prev];
+        const idx=arr.indexOf(dragId);
+        if(idx===-1) return prev;
+        arr.splice(idx,1);
+        arr.splice(dragOverIndex,0,dragId);
+        return arr;
+      });
     }
-    setDragId(null); setDragDX(0);
+    setDragId(null); setDragDX(0); setDragOverIndex(null);
   }
 
   async function draw(source){
@@ -770,10 +772,16 @@ function Playing({roomId, playerId}){
         )}
 
         {/* stock / joker / discard */}
+        {(()=>{
+          const canDraw = myTurn && hand.cards.length===14 && !busy;
+          const glowStyle = canDraw ? {boxShadow:`0 0 0 3px ${SC.green}, 0 0 18px 2px ${SC.green}99`, animation:'glowPulse 1.6s ease-in-out infinite'} : {opacity:0.6};
+          return (
         <div style={{display:'flex',justifyContent:'center',gap:22,alignItems:'flex-end',marginTop:4}}>
           <div style={{textAlign:'center'}}>
-            <div style={{fontSize:'0.64rem',color:SC.muted,marginBottom:6,fontWeight:700,letterSpacing:'0.04em'}}>TREKSTAPEL · {round.stock.length}</div>
-            <CardBack onTap={()=>myTurn&&hand.cards.length===14&&draw('stock')}/>
+            <div style={{fontSize:'0.64rem',color:canDraw?SC.green:SC.muted,marginBottom:6,fontWeight:700,letterSpacing:'0.04em'}}>TREKSTAPEL · {round.stock.length}</div>
+            <div style={{borderRadius:12, ...(canDraw?glowStyle:{opacity:0.75})}}>
+              <CardBack onTap={()=>canDraw&&draw('stock')}/>
+            </div>
           </div>
           <div style={{textAlign:'center'}}>
             <div style={{fontSize:'0.64rem',color:SC.muted,marginBottom:6,fontWeight:700,letterSpacing:'0.04em'}}>JOKER IS</div>
@@ -785,12 +793,24 @@ function Playing({roomId, playerId}){
             <div style={{fontSize:'0.6rem',color:SC.gold,marginTop:4,fontWeight:700}}>×{{C:2,S:3,D:4,H:5}[round.open_card.suit]} vermenigvuldiger</div>
           </div>
           <div style={{textAlign:'center'}}>
-            <div style={{fontSize:'0.64rem',color:SC.muted,marginBottom:6,fontWeight:700,letterSpacing:'0.04em'}}>AFLEGSTAPEL</div>
+            <div style={{fontSize:'0.64rem',color:canDraw&&topDiscard?SC.green:SC.muted,marginBottom:6,fontWeight:700,letterSpacing:'0.04em'}}>AFLEGSTAPEL</div>
             {topDiscard
-              ? <Card card={topDiscard} onTap={()=>myTurn&&hand.cards.length===14&&draw('discard')}/>
+              ? <div style={{borderRadius:12, ...(canDraw?glowStyle:{opacity:0.75})}}><Card card={topDiscard} onTap={()=>canDraw&&draw('discard')}/></div>
               : <div style={{width:56,height:78,borderRadius:10,border:`2px dashed ${SC.border}`}}></div>}
           </div>
         </div>
+          );
+        })()}
+        {myTurn && hand.cards.length===14 && (
+          <div className="pop" style={{textAlign:'center',color:SC.green,fontSize:'0.72rem',fontWeight:700}}>
+            👆 Tik de trekstapel of aflegstapel om een kaart te trekken
+          </div>
+        )}
+        {myTurn && hand.cards.length===15 && selected.length===0 && (
+          <div className="pop" style={{textAlign:'center',color:SC.red,fontSize:'0.72rem',fontWeight:700}}>
+            👆 Tik een kaart in je hand en dan "Afleggen" om te legen
+          </div>
+        )}
 
         {hand.is_turning && (
           <div className="pop" style={{textAlign:'center',color:SC.gold,fontSize:'0.8rem',fontWeight:800,padding:'8px 14px',
@@ -815,28 +835,42 @@ function Playing({roomId, playerId}){
           <div style={{fontSize:'0.7rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',padding:'0 4px'}}>
             Jouw hand ({hand.cards.length}) <span style={{opacity:0.6,textTransform:'none',letterSpacing:0}}>· tik = selecteren, sleep = verplaatsen</span>
           </div>
-          <div ref={fanWrapRef} style={{position:'relative',width:'100%',height:76+34*fanScale,marginTop:4}}>
+          <div ref={fanWrapRef} style={{position:'relative',width:'100%',height:80+40*fanScale,marginTop:4}}>
             <div style={{position:'absolute',left:'50%',top:0,transform:`translateX(-50%) scale(${fanScale})`,transformOrigin:'top center',display:'flex'}}>
-              {ungroupedIds.map((id,i)=>{
-                const c=cardsById[id];
-                const n=ungroupedIds.length, mid=(n-1)/2, off=i-mid;
-                const isDragging = dragId===id;
-                const angle=isDragging?0:Math.max(-16,Math.min(16,off*(n>10?2.2:3.4)));
-                const shiftY=isDragging?-14:Math.abs(off)*2.4;
-                return (
-                  <div key={id}
-                    onPointerDown={e=>onCardDown(e,id,i)}
-                    onPointerMove={onCardMove}
-                    onPointerUp={onCardUp}
-                    onPointerCancel={onCardUp}
-                    style={{position:'relative',marginLeft:i===0?0:-24,
-                      zIndex:isDragging?100:(selected.includes(id)?50:i),
-                      transform:`translateX(${isDragging?dragDX:0}px) translateY(${shiftY}px) rotate(${angle}deg) ${isDragging?'scale(1.1)':''}`,
-                      transition:isDragging?'none':'transform 0.18s', flexShrink:0, touchAction:'none'}}>
-                    <Card card={c} selected={selected.includes(id)}/>
-                  </div>
-                );
-              })}
+              {(()=>{
+                // While dragging, render everyone else in the order they'll
+                // end up in (dragOverIndex) so the fan visibly opens a gap
+                // for the card before you let go.
+                const baseIds = dragId!==null ? ungroupedIds.filter(id=>id!==dragId) : ungroupedIds;
+                const displayIds = dragId!==null
+                  ? [...baseIds.slice(0,dragOverIndex), dragId, ...baseIds.slice(dragOverIndex)]
+                  : ungroupedIds;
+                const n=displayIds.length, mid=(n-1)/2;
+                const angleStep = n>12?1.7:n>7?2.6:3.6;
+                const curve = n>12?0.9:1.6;
+                return displayIds.map((id,i)=>{
+                  const c=cardsById[id];
+                  if(!c) return null;
+                  const off=i-mid;
+                  const isDragging = dragId===id;
+                  const angle = isDragging?0:Math.max(-20,Math.min(20,off*angleStep));
+                  const shiftY = isDragging?-16:Math.min(20,off*off*curve);
+                  return (
+                    <div key={id}
+                      onPointerDown={e=>onCardDown(e,id,ungroupedIds.indexOf(id))}
+                      onPointerMove={onCardMove}
+                      onPointerUp={onCardUp}
+                      onPointerCancel={onCardUp}
+                      style={{position:'relative',marginLeft:i===0?0:-26,
+                        zIndex:isDragging?100:(selected.includes(id)?50:i),
+                        transform:`translateX(${isDragging?dragDX:0}px) translateY(${shiftY}px) rotate(${angle}deg) ${isDragging?'scale(1.12)':''}`,
+                        transition:isDragging?'none':'transform 0.2s cubic-bezier(.2,.8,.3,1)', flexShrink:0, touchAction:'none',
+                        filter:isDragging?'drop-shadow(0 10px 14px rgba(0,0,0,0.5))':'none'}}>
+                      <Card card={c} selected={selected.includes(id)}/>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
