@@ -257,6 +257,14 @@ function Home({onEntered}){
     saveDevice({ roomId:data.room.id, playerId:data.player.id });
     onEntered(data.room.id, data.player.id);
   }
+  async function playVsComputer(){
+    setBusy(true); setErr('');
+    const { data, error } = await sb.functions.invoke('create-bot-room', { body:{ displayName:(name.trim()||'Speler'), roundTarget:Number(roundTarget)||8 } });
+    setBusy(false);
+    if(error||(data&&data.error)) return setErr((data&&data.error)||error.message);
+    saveDevice({ roomId:data.room.id, playerId:data.player.id });
+    onEntered(data.room.id, data.player.id);
+  }
 
   const inputStyle={padding:'14px 16px',borderRadius:14,border:`1.5px solid ${SC.border}`,background:'rgba(0,0,0,0.28)',color:SC.text,fontSize:'1rem',width:'100%'};
   const FAN=[{r:'8',s:'H'},{r:'9',s:'H'},{r:'J',s:'JOKER'},{r:'K',s:'S'},{r:'A',s:'D'}];
@@ -306,6 +314,7 @@ function Home({onEntered}){
           <div className="slide-up" style={{display:'flex',gap:10,marginTop:10,width:'100%',maxWidth:360,flexDirection:'column'}}>
             <MenuRow icon="🎲" title="Room maken" sub="Start een nieuwe game" onTap={()=>setMode('create')}/>
             <MenuRow icon="🔑" title="Room joinen" sub="Vul een room-code in" onTap={()=>setMode('join')}/>
+            <MenuRow icon="🤖" title="Tegen computer" sub="Los testen, geen 2e speler nodig" onTap={()=>setMode('bot')}/>
             <div style={{marginTop:10,marginBottom:2,color:SC.muted,fontSize:'0.68rem',textTransform:'uppercase',letterSpacing:'0.1em',textAlign:'center'}}>Speel modi</div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
               {[['👤','1v1'],['👥','1v1v1'],['👥','1v1v1v1'],['⚔️','2v2']].map(([ic,lbl])=>(
@@ -326,7 +335,7 @@ function Home({onEntered}){
               <input value={code} onChange={e=>setCode(e.target.value.toUpperCase())} placeholder="ROOM CODE"
                 style={{...inputStyle,letterSpacing:3,textTransform:'uppercase',fontWeight:800,textAlign:'center'}} />
             )}
-            {mode==='create' && (
+            {(mode==='create'||mode==='bot') && (
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,color:SC.muted,fontSize:'0.85rem',
                 padding:'10px 14px',borderRadius:12,background:SC.surface,border:`1px solid ${SC.border}`}}>
                 Aantal rondes
@@ -335,7 +344,9 @@ function Home({onEntered}){
               </div>
             )}
             {err && <div style={{color:SC.red,fontSize:'0.8rem',textAlign:'center'}}>{err}</div>}
-            <Button disabled={busy} onTap={mode==='create'?createRoom:joinRoom}>{busy?'Bezig…':mode==='create'?'Maak room':'Join room'}</Button>
+            <Button disabled={busy} onTap={mode==='create'?createRoom:mode==='bot'?playVsComputer:joinRoom}>
+              {busy?'Bezig…':mode==='create'?'Maak room':mode==='bot'?'🤖 Start tegen computer':'Join room'}
+            </Button>
             <div onPointerDown={()=>setMode(null)} style={{...TAP,textAlign:'center',color:SC.muted,fontSize:'0.8rem'}}>← Terug</div>
           </div>
         )}
@@ -531,6 +542,22 @@ function Playing({roomId, playerId}){
       return kept.concat(added);
     });
   },[hand && hand.cards.map(c=>c.id).join(','), groups.map(g=>g.join('-')).join('|')]);
+
+  // "Tegen computer": the bot has no session of its own, so whenever it's
+  // its turn, this human's client nudges the bot-move Edge Function to
+  // play one full turn for it (draw + discard, or draw + open). The
+  // effect only re-fires when the turn actually changes, so this can't
+  // double-invoke while the bot's turn is still in progress.
+  useEffect(()=>{
+    if(!round || round.phase!=='playing') return;
+    const bot = players.find(p=>p.is_bot);
+    if(!bot || round.turn_player_id!==bot.id) return;
+    let cancelled = false;
+    const t = setTimeout(()=>{
+      if(!cancelled) sb.functions.invoke('bot-move', { body:{ roundId: round.id } }).catch(()=>{});
+    }, 900);
+    return ()=>{ cancelled = true; clearTimeout(t); };
+  },[round && round.id, round && round.turn_player_id, round && round.phase, players.length]);
 
   // Scale the fan down (instead of scrolling) so the whole hand always fits.
   useEffect(()=>{
