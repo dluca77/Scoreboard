@@ -150,14 +150,24 @@ function Button({children, onTap, color=SC.gold, disabled, style, variant, sub})
   );
 }
 
-function Avatar({name, size=40, ring}){
-  const initial = (name||'?').trim().charAt(0).toUpperCase();
+const AVATAR_COUNT = 13;
+function avatarIndexFor(id){
+  const s = String(id||'');
+  let h = 0;
+  for(let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+  return (h % AVATAR_COUNT) + 1;
+}
+
+function Avatar({id, name, size=40, ring, isBot}){
+  const src = isBot
+    ? null
+    : `assets/avatars/char_${avatarIndexFor(id||name)}.png`;
   return (
-    <div style={{width:size,height:size,borderRadius:'50%',flexShrink:0,
-      background:'linear-gradient(155deg,#2a4a36,#173726)',border:`2px solid ${ring||SC.gold}`,
+    <div style={{width:size,height:size,borderRadius:'50%',flexShrink:0,overflow:'hidden',
+      background:'linear-gradient(155deg,#2a4a36,#173726)',border:`2.5px solid ${ring||SC.gold}`,
       display:'flex',alignItems:'center',justifyContent:'center',color:SC.gold,fontWeight:800,
-      fontSize:size*0.4, boxShadow:'0 3px 8px rgba(0,0,0,0.5)'}}>
-      {initial}
+      fontSize:size*0.5, boxShadow:'0 3px 8px rgba(0,0,0,0.5)'}}>
+      {isBot ? '🤖' : <img src={src} draggable={false} style={{width:'100%',height:'100%',objectFit:'cover',pointerEvents:'none',userSelect:'none'}}/>}
     </div>
   );
 }
@@ -444,7 +454,7 @@ function Lobby({roomId, playerId, onStarted}){
             return (
               <div key={p.id} className="slide-up" style={{padding:'10px 14px',borderRadius:14,background:SC.surface,border:`1px solid ${SC.border}`,display:'flex',justifyContent:'space-between',alignItems:'center',animationDelay:`${i*0.05}s`}}>
                 <span style={{fontWeight:700,display:'flex',alignItems:'center',gap:10}}>
-                  <Avatar name={p.display_name} size={32}/>
+                  <Avatar id={p.id} name={p.display_name} size={32} isBot={p.is_bot}/>
                   {p.display_name}{p.id===playerId?' (jij)':''}
                 </span>
                 <span style={{fontSize:'0.72rem',fontWeight:700,color:host?SC.gold:(p.ready?SC.green:SC.muted)}}>
@@ -728,48 +738,84 @@ function Playing({roomId, playerId}){
   const canOpen = hand.cards.length===15 && groups.length>0 && ungrouped.length===1;
   const opponents = players.filter(p=>p.id!==playerId);
 
+  const myCardCount = hand.cards.length;
+
   return (
     <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',paddingBottom:190,position:'relative'}}>
-      <TopBar title="SUPER" sub={`Ronde ${round.round_no}/${room.round_target}`} onInfo={()=>setRulesOpen(true)}/>
+      <div style={{position:'sticky',top:0,zIndex:50,display:'flex',alignItems:'center',gap:10,
+        padding:'10px 14px',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
+        background:'rgba(10,26,17,0.72)',borderBottom:`1px solid ${SC.border}`}}>
+        <button onPointerDown={()=>{ try{localStorage.removeItem('super_device');}catch(e){}; window.location.href='index.html'; }}
+          style={{...TAP,width:34,height:34,borderRadius:10,border:`1px solid ${SC.border}`,background:'rgba(255,255,255,0.06)',color:SC.gold,fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>←</button>
+        <div style={{flex:1,textAlign:'center'}}>
+          <div style={{fontSize:0}}>👑</div>
+          <h1 className="gold-text" style={{fontFamily:'Cinzel,serif',fontSize:'1.5rem',fontWeight:900,letterSpacing:'0.03em',margin:0,lineHeight:1}}>SUPER</h1>
+        </div>
+        <button onPointerDown={()=>setRulesOpen(true)} style={{...TAP,width:34,height:34,borderRadius:10,border:`1px solid ${SC.border}`,background:'rgba(255,255,255,0.06)',color:SC.gold,fontSize:'0.95rem',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>ℹ</button>
+      </div>
       <RulesSheet open={rulesOpen} onClose={()=>setRulesOpen(false)}/>
 
       {/* faint table watermark */}
       <div style={{position:'absolute',top:'34%',left:'50%',transform:'translate(-50%,-50%)',fontFamily:'Cinzel,serif',
         fontSize:'3.2rem',fontWeight:900,color:'rgba(212,175,90,0.05)',letterSpacing:'0.1em',pointerEvents:'none',whiteSpace:'nowrap'}}>SUPER</div>
 
-      <div style={{padding:'14px 12px 0',display:'flex',flexDirection:'column',gap:14,position:'relative',zIndex:1}}>
+      <div style={{padding:'12px 12px 0',display:'flex',flexDirection:'column',gap:12,position:'relative',zIndex:1}}>
 
-        {/* score panel */}
-        <div className="ornate-border" style={{borderRadius:16,padding:'10px 14px',background:'rgba(0,0,0,0.28)'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-            <span style={{fontSize:'0.68rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em'}}>Doel: laagste score wint</span>
-            <span style={{fontSize:'0.68rem',color:myTurn?SC.green:SC.gold,fontWeight:800}}>{myTurn?'🟢 Jouw beurt':`Beurt: ${turnPlayer?turnPlayer.display_name:'…'}`}</span>
+        {/* open card / joker + round & scores, side by side like a real table */}
+        <div style={{display:'flex',gap:8,alignItems:'stretch'}}>
+          <div className="ornate-border" style={{flex:1,borderRadius:14,padding:'8px 10px',background:'rgba(0,0,0,0.28)',display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+            <div style={{fontSize:'0.6rem',color:SC.muted,fontWeight:700,letterSpacing:'0.06em'}}>JOKER IS</div>
+            <div style={{color:SC.gold,fontWeight:800,fontSize:'1.05rem'}}>{round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</div>
+            <div style={{fontSize:'0.58rem',color:SC.gold,fontWeight:700}}>×{{C:2,S:3,D:4,H:5}[round.open_card.suit]} vermenigvuldiger</div>
           </div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:'4px 14px'}}>
-            {players.map(p=>(
-              <div key={p.id} style={{display:'flex',alignItems:'center',gap:5,fontSize:'0.78rem'}}>
-                <span style={{width:7,height:7,borderRadius:'50%',background:p.id===playerId?SC.green:SC.gold,flexShrink:0}}/>
-                <span style={{color:SC.muted}}>{p.display_name}{p.id===playerId?' (jij)':''}</span>
-                <b style={{color:SC.text}}>{p.total_score}</b>
-              </div>
-            ))}
+          <div className="ornate-border" style={{flex:1.3,borderRadius:14,padding:'8px 10px',background:'rgba(0,0,0,0.28)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
+              <span style={{fontSize:'0.62rem',color:SC.muted,fontWeight:700}}>RONDE {round.round_no}/{room.round_target}</span>
+              <span style={{fontSize:'0.62rem',color:myTurn?SC.green:SC.gold,fontWeight:800}}>{myTurn?'🟢 Jij':turnPlayer?turnPlayer.display_name:'…'}</span>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:2}}>
+              {players.map(p=>(
+                <div key={p.id} style={{display:'flex',alignItems:'center',gap:5,fontSize:'0.7rem'}}>
+                  <span style={{width:6,height:6,borderRadius:'50%',background:p.id===playerId?SC.green:SC.gold,flexShrink:0}}/>
+                  <span style={{color:SC.muted,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name}{p.id===playerId?' (jij)':''}</span>
+                  <b style={{color:SC.text}}>{p.total_score}</b>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* opponents row */}
         {opponents.length>0 && (
           <div style={{display:'flex',gap:10,justifyContent:'center',flexWrap:'wrap'}}>
-            {opponents.map(p=>(
+            {opponents.map(p=>{
+              const oppHandCount = p.is_bot ? null : null; // opponent hand sizes aren't exposed to the client
+              return (
               <div key={p.id} className="ornate-border" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,
                 padding:'8px 10px',borderRadius:14,background:'rgba(0,0,0,0.25)',
                 outline:round.turn_player_id===p.id?`2px solid ${SC.gold}`:'none'}}>
-                <Avatar name={p.display_name} size={34} ring={round.turn_player_id===p.id?SC.gold:SC.border}/>
+                <Avatar id={p.id} name={p.display_name} size={38} isBot={p.is_bot} ring={round.turn_player_id===p.id?SC.gold:SC.border}/>
                 <span style={{fontSize:'0.68rem',fontWeight:700,color:SC.text,maxWidth:70,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name}</span>
+                <span style={{fontSize:'0.6rem',color:SC.gold,fontWeight:700}}>⭐ {p.total_score}</span>
                 <CardBack w={26} h={36}/>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
+
+        {/* your own seat, shown like an opponent tile so the table reads consistently */}
+        <div className="ornate-border" style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:14,
+          background:myTurn?'rgba(57,168,96,0.14)':'rgba(0,0,0,0.25)', border:myTurn?`1px solid ${SC.green}`:undefined}}>
+          <Avatar id={playerId} name="Jij" size={36} ring={myTurn?SC.green:SC.border}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:800,fontSize:'0.82rem',color:SC.text}}>Jij {myTurn && <span style={{color:SC.green}}>(aan de beurt)</span>}</div>
+            <div style={{fontSize:'0.68rem',color:SC.gold,fontWeight:700}}>⭐ {players.find(p=>p.id===playerId)?.total_score ?? 0}</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:4,color:SC.muted,fontSize:'0.72rem',fontWeight:700}}>
+            🂠 {myCardCount}
+          </div>
+        </div>
 
         {/* stock / joker / discard */}
         {(()=>{
@@ -876,6 +922,23 @@ function Playing({roomId, playerId}){
         </div>
 
         {err && <div style={{color:SC.red,fontSize:'0.8rem',textAlign:'center'}}>{err}</div>}
+
+        {/* always-visible scoring reference, like a real table's rulecard */}
+        <div style={{display:'flex',gap:6,marginTop:2}}>
+          {[['Normaal openen','-100',SC.green],['Met joker','-500',SC.red],['Aan het draaien','+500',SC.gold]].map(([label,val,color])=>(
+            <div key={label} className="ornate-border" style={{flex:1,borderRadius:10,padding:'6px 4px',textAlign:'center',background:'rgba(0,0,0,0.22)'}}>
+              <div style={{fontSize:'0.56rem',color:SC.muted,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.02em'}}>{label}</div>
+              <div style={{fontSize:'0.78rem',fontWeight:800,color}}>{val}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:'flex',gap:6,justifyContent:'center',paddingBottom:4}}>
+          {[['♣','×2',SUIT_COLOR.C],['♠','×3',SUIT_COLOR.S],['♦','×4',SUIT_COLOR.D],['♥','×5',SUIT_COLOR.H]].map(([s,m,c])=>(
+            <div key={s} style={{fontSize:'0.68rem',color:c,fontWeight:800,display:'flex',alignItems:'center',gap:2}}>
+              <span style={{fontSize:'0.85rem'}}>{s}</span>{m}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div style={{position:'fixed',bottom:0,left:0,right:0,padding:'14px 14px 20px',display:'flex',gap:8,justifyContent:'center',
