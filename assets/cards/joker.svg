@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 356 500">
+  <rect x="0" y="0" width="356" height="500" rx="26" fill="#eef1f4"/>
+  <rect x="14" y="14" width="328" height="472" rx="18" fill="none" stroke="#c62f52" stroke-width="2" opacity="0.5"/>
+  <g font-family="Georgia, serif" font-weight="800" font-size="34" fill="#c62f52">
+    <text x="30" y="70" text-anchor="middle">J</text>
+    <text x="30" y="108" text-anchor="middle">O</text>
+    <text x="30" y="146" text-anchor="middle">K</text>
+    <text x="30" y="184" text-anchor="middle">E</text>
+    <text x="30" y="222" text-anchor="middle">R</text>
+    <g transform="translate(326,430) rotate(180)">
+      <text x="0" y="0" text-anchor="middle">J</text>
+      <text x="0" y="-38" text-anchor="middle">O</text>
+      <text x="0" y="-76" text-anchor="middle">K</text>
+      <text x="0" y="-114" text-anchor="middle">E</text>
+      <text x="0" y="-152" text-anchor="middle">R</text>
+    </g>
+  </g>
+  <rect x="90" y="90" width="176" height="320" fill="#f7fafc"/>
+  <g transform="translate(178,180)">
+    <polygon points="0,-46 34,-6 -34,-6" fill="#2b2f8f"/>
+    <polygon points="0,-46 -34,-6 -18,-46" fill="#c62f52"/>
+    <polygon points="0,-46 34,-6 18,-46" fill="#c62f52"/>
+    <rect x="-40" y="-10" width="80" height="20" rx="4" fill="#f4c93a" stroke="#7a5a10" stroke-width="1.5"/>
+    <circle cx="-40" cy="0" r="7" fill="#f4c93a" stroke="#7a5a10" stroke-width="1.5"/>
+    <circle cx="0" cy="-48" r="7" fill="#f4c93a" stroke="#7a5a10" stroke-width="1.5"/>
+    <circle cx="40" cy="0" r="7" fill="#f4c93a" stroke="#7a5a10" stroke-width="1.5"/>
+    <circle cx="-16" cy="0" r="2.4" fill="#7a5a10"/>
+    <circle cx="-6" cy="0" r="2.4" fill="#7a5a10"/>
+    <circle cx="4" cy="0" r="2.4" fill="#7a5a10"/>
+    <circle cx="14" cy="0" r="2.4" fill="#7a5a10"/>
+  </g>
+  <g transform="translate(178,330) rotate(180)">
+    <polygon points="0,-46 34,-6 -34,-6" fill="#2b2f8f"/>
+    <polygon points="0,-46 -34,-6 -18,-46" fill="#c62f52"/>
+    <polygon points="0,-46 34,-6 18,-46" fill="#c62f52"/>
+    <rect x="-40" y="-10" width="80" height="20" rx="4" fill="#f4c93a" stroke="#7a5a10" stroke-width="1.5"/>
+    <circle cx="-40" cy="0" r="7" fill="#f4c93a" stroke="#7a5a10" stroke-width="1.5"/>
+    <circle cx="0" cy="-48" r="7" fill="#f4c93a" stroke="#7a5a10" stroke-width="1.5"/>
+    <circle cx="40" cy="0" r="7" fill="#f4c93a" stroke="#7a5a10" stroke-width="1.5"/>
+    <circle cx="-16" cy="0" r="2.4" fill="#7a5a10"/>
+    <circle cx="-6" cy="0" r="2.4" fill="#7a5a10"/>
+    <circle cx="4" cy="0" r="2.4" fill="#7a5a10"/>
+    <circle cx="14" cy="0" r="2.4" fill="#7a5a10"/>
+  </g>
+</svg>
