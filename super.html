@@ -556,6 +556,35 @@ function Playing({roomId, playerId}){
 
   useEffect(()=>{ setSelected([]); setGroups([]); },[hand && hand.cards && hand.cards.length]);
 
+  // If the card being dragged leaves the hand mid-drag (discarded/grouped
+  // by the time this update lands), clear the stuck drag state instead of
+  // leaving that card id's scale/position transform dangling forever.
+  useEffect(()=>{
+    if(dragId!==null && hand && !hand.cards.some(c=>c.id===dragId)){
+      setDragId(null); setDragDX(0); setDragOverIndex(null);
+    }
+  },[hand && hand.cards.map(c=>c.id).join(',')]);
+
+  // Safety net: on mobile, a pointerup/pointercancel can be swallowed by
+  // native scroll/gesture handling before it reaches the dragged card's
+  // own listener, leaving dragId stuck — which renders that one card
+  // permanently oversized (drag scale never gets undone). Any pointerup
+  // anywhere in the window finalizes the drag, same as if it landed on
+  // the card itself. onCardUp is a hoisted function declaration defined
+  // further down, so referencing it here (before the early returns) is
+  // safe — it only reads state/setters, nothing that requires the hand
+  // to already be loaded.
+  useEffect(()=>{
+    if(dragId===null) return;
+    function release(){ onCardUp(); }
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+    return ()=>{
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+    };
+  },[dragId, dragDX, dragOverIndex]);
+
   // Keep a manual fan order for your ungrouped cards: preserve any drag
   // reordering the player already did, drop cards that left the hand
   // (discarded/grouped), and append newly drawn cards at the end.
