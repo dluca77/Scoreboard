@@ -1378,16 +1378,28 @@ function Playing({roomId, playerId}){
     setBusy(true); setErr('');
     const { data, error } = await invokeFn('draw-card',{roundId:round.id, source});
     setBusy(false);
-    if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
+    if(error||(data&&data.error)){ setErr((data&&data.error)||error.message); return; }
+    // Apply the response straight away instead of waiting for the
+    // realtime round-trip back — that extra hop was most of the
+    // perceived "few seconds" delay on your own draw/discard. When the
+    // stock ran out the round ends server-side instead of returning
+    // cards — let the normal realtime subscription pick that up.
+    if(data && data.roundFinished) return;
+    setHand(h=>({...h, cards:data.cards}));
+    setRound(r=>source==='stock' ? {...r, stock:r.stock.slice(0,-1)} : {...r, discard:r.discard.slice(0,-1)});
   }
   async function discard(){
     if(selected.length!==1){ setErr('Selecteer precies 1 kaart om af te leggen'); return; }
-    const cardEl = fanWrapRef.current && fanWrapRef.current.querySelector(`[data-card-id="${selected[0]}"]`);
-    spawnFlight(cardEl, discardRef.current, cardsById[selected[0]], false);
+    const cardId = selected[0];
+    const discardedCard = cardsById[cardId];
+    const cardEl = fanWrapRef.current && fanWrapRef.current.querySelector(`[data-card-id="${cardId}"]`);
+    spawnFlight(cardEl, discardRef.current, discardedCard, false);
     setBusy(true); setErr('');
-    const { data, error } = await invokeFn('discard-card',{roundId:round.id, cardId:selected[0]});
+    const { data, error } = await invokeFn('discard-card',{roundId:round.id, cardId});
     setBusy(false);
-    if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
+    if(error||(data&&data.error)){ setErr((data&&data.error)||error.message); return; }
+    setHand(h=>({...h, cards:data.cards}));
+    setRound(r=>({...r, discard:[...r.discard, discardedCard], turn_player_id:data.nextPlayerId}));
   }
   async function openHand(){
     if(looseIds.length!==1){ setErr('Precies 1 kaart moet overblijven om af te leggen'); return; }
