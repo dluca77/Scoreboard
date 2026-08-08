@@ -31,6 +31,10 @@ button:active{transform:scale(0.96)}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 @keyframes dealFly{0%{transform:translate(-50%,-50%) rotate(0deg) scale(1);opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(360deg) scale(0.65);opacity:0}}
 .deal-fly{animation:dealFly 0.48s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes dealFlyMe{0%{transform:translate(-50%,-50%) rotate(0deg) scale(1);opacity:1}60%{opacity:1}100%{transform:translate(-50%,calc(-50% + 46vh)) rotate(280deg) scale(0.7);opacity:0}}
+.deal-fly-me{animation:dealFlyMe 0.74s cubic-bezier(.22,.68,.32,1) forwards}
+@keyframes dealFlyOpp{0%{transform:translate(-50%,-50%) rotate(0deg) scale(1);opacity:1}60%{opacity:1}100%{transform:translate(calc(-50% + var(--oppdx)),calc(-50% - 34vh)) rotate(-260deg) scale(0.55);opacity:0}}
+.deal-fly-opp{animation:dealFlyOpp 0.74s cubic-bezier(.22,.68,.32,1) forwards}
 .pop{animation:popIn 0.25s ease-out}
 .slide-up{animation:slideUp 0.35s ease-out both}
 .fade-in{animation:fadeIn 0.3s ease-out both}
@@ -253,15 +257,20 @@ function Avatar({id, name, size=40, ring, isBot}){
 // the dealer (same seat that gets the first turn — dealerSeat/firstTurnSeat
 // in start-round mirror this order exactly, so it always matches who
 // actually goes first).
-function DealAnimation({players, round, onDone}){
+// Plays out on top of the real table chrome (same header + round panel
+// the play screen itself uses) so it reads as "this screen is dealing",
+// not a separate interstitial. Cards fly from the deck down toward your
+// hand, or up toward the opponent's avatar, 2 at a time round-robin,
+// along a slight arc for a less mechanical, more cinematic motion.
+function DealAnimation({players, round, room, playerId, onDone}){
   const [counts, setCounts] = useState(()=>{
     const o={}; players.forEach(p=>{ o[p.id]=0; }); return o;
   });
   const [activeId, setActiveId] = useState(null);
-  const [flying, setFlying] = useState([]); // {key, dx, dy} — actual card sprites in flight
+  const [flying, setFlying] = useState([]); // {key, toMe}
   const flyKeyRef = useRef(0);
   const n = players.length;
-  const spacing = Math.min(110, 280/Math.max(1,n-1||1));
+  const opponents = players.filter(p=>p.id!==playerId);
 
   useEffect(()=>{
     if(n===0){ onDone(); return; }
@@ -275,7 +284,7 @@ function DealAnimation({players, round, onDone}){
       if(idx>=order.length){
         clearInterval(timer);
         setActiveId(null);
-        setTimeout(onDone, 500);
+        setTimeout(onDone, 550);
         return;
       }
       const pIdx = order[idx];
@@ -283,37 +292,73 @@ function DealAnimation({players, round, onDone}){
       setActiveId(pid);
       setCounts(c=>({...c,[pid]:(c[pid]||0)+2}));
       const key = flyKeyRef.current++;
-      const off = n>1 ? pIdx-(n-1)/2 : 0;
-      setFlying(f=>[...f, {key, dx: off*spacing, dy: 168}]);
-      setTimeout(()=>{ setFlying(f=>f.filter(c=>c.key!==key)); }, 500);
+      const oppIdx = Math.max(0, opponents.findIndex(p=>p.id===pid));
+      setFlying(f=>[...f, {key, toMe: pid===playerId, oppIdx}]);
+      setTimeout(()=>{ setFlying(f=>f.filter(c=>c.key!==key)); }, 780);
       idx++;
-    }, 170);
+    }, 260);
     return ()=>clearInterval(timer);
   },[]);
 
   return (
-    <div style={{position:'fixed',inset:0,zIndex:200,background:SC.bg,display:'flex',flexDirection:'column',
-      alignItems:'center',justifyContent:'center',gap:28,overflow:'hidden'}}>
-      <div className="gold-text" style={{fontFamily:'Cinzel,serif',fontSize:'1.4rem',fontWeight:900,letterSpacing:'0.05em'}}>Delen…</div>
-      <div style={{position:'relative',width:1,height:1}}>
+    <div style={{position:'fixed',inset:0,zIndex:200,background:SC.bg,overflow:'hidden'}}>
+      <div style={{position:'sticky',top:0,zIndex:1,display:'flex',alignItems:'center',gap:10,
+        padding:'10px 14px',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
+        background:'rgba(10,26,17,0.72)',borderBottom:`1px solid ${SC.border}`}}>
+        <div style={{width:34,height:34}}/>
+        <div style={{flex:1,textAlign:'center'}}>
+          <div style={{fontSize:'0.85rem',marginBottom:-4}}>👑</div>
+          <h1 className="gold-text" style={{fontFamily:'Cinzel,serif',fontSize:'1.5rem',fontWeight:900,letterSpacing:'0.03em',margin:0,lineHeight:1}}>SUPER</h1>
+        </div>
+        <div style={{width:34,height:34}}/>
+      </div>
+
+      <div style={{padding:'8px 12px 0'}}>
+        <div className="ornate-border" style={{borderRadius:14,padding:'7px 12px',background:'rgba(0,0,0,0.28)',display:'flex',justifyContent:'space-between',gap:8}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:'0.6rem',color:SC.muted,fontWeight:700,marginBottom:3}}>RONDE {round.round_no}/{room.round_target}</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'2px 12px'}}>
+              {players.map(p=>(
+                <div key={p.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:'0.7rem'}}>
+                  <span style={{width:6,height:6,borderRadius:'50%',background:SC.gold,flexShrink:0}}/>
+                  <span style={{color:SC.muted}}>{p.id===playerId?'Jij':p.display_name}</span>
+                  <b style={{color:SC.text}}>{p.total_score}</b>
+                </div>
+              ))}
+            </div>
+          </div>
+          {opponents.length>0 && (
+            <div style={{display:'flex',gap:6,flexShrink:0}}>
+              {opponents.map((p,i)=>(
+                <div key={p.id} id={`deal-opp-${i}`} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
+                  outline:activeId===p.id?`2px solid ${SC.gold}`:'none', borderRadius:10, padding:2,
+                  transform:activeId===p.id?'scale(1.12)':'scale(1)', transition:'transform 0.15s'}}>
+                  <Avatar id={p.id} name={p.display_name} size={26} isBot={p.is_bot} ring={activeId===p.id?SC.gold:SC.border}/>
+                  <span style={{fontSize:'0.5rem',color:SC.muted,fontWeight:700}}>{counts[p.id]||0}/14</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="gold-text" style={{textAlign:'center',fontFamily:'Cinzel,serif',fontSize:'1.1rem',fontWeight:900,letterSpacing:'0.06em',marginTop:'12vh'}}>Delen…</div>
+
+      <div style={{position:'absolute',left:'50%',top:'42vh',width:1,height:1}}>
         <div style={{position:'absolute',left:0,top:0,transform:'translate(-50%,-50%)',animation:'glowPulse 1.4s ease-in-out infinite'}}>
           <CardBack/>
         </div>
         {flying.map(fc=>(
-          <div key={fc.key} className="deal-fly" style={{'--dx':`${fc.dx}px`,'--dy':`${fc.dy}px`,position:'absolute',left:0,top:0}}>
+          <div key={fc.key} className={fc.toMe?'deal-fly-me':'deal-fly-opp'}
+            style={{'--oppdx':`${(fc.oppIdx-  (opponents.length-1)/2)*30 + 130}px`, position:'absolute',left:0,top:0}}>
             <CardBack w={38} h={54}/>
           </div>
         ))}
       </div>
-      <div style={{display:'flex',gap:28,flexWrap:'wrap',justifyContent:'center',padding:'0 20px',marginTop:130}}>
-        {players.map(p=>(
-          <div key={p.id} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,
-            transform:activeId===p.id?'scale(1.1)':'scale(1)', transition:'transform 0.15s'}}>
-            <Avatar id={p.id} name={p.display_name} size={46} isBot={p.is_bot} ring={activeId===p.id?SC.gold:SC.border}/>
-            <span style={{fontSize:'0.72rem',fontWeight:700,color:SC.text,maxWidth:80,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name}</span>
-            <span style={{fontSize:'0.9rem',fontWeight:900,color:SC.gold}}>{counts[p.id]||0}/14</span>
-          </div>
-        ))}
+
+      <div style={{position:'absolute',left:0,right:0,bottom:'8vh',textAlign:'center'}}>
+        <div style={{fontSize:'0.68rem',color:SC.muted,fontWeight:700,marginBottom:6,textTransform:'uppercase',letterSpacing:'0.06em'}}>Jouw hand</div>
+        <div className="gold-text" style={{fontFamily:'Cinzel,serif',fontSize:'1.4rem',fontWeight:900}}>{counts[playerId]||0}/14</div>
       </div>
     </div>
   );
@@ -862,7 +907,7 @@ function Playing({roomId, playerId}){
   );
 
   if(dealingRoundId===round.id){
-    return <DealAnimation players={players} round={round} onDone={()=>setDealingRoundId(null)}/>;
+    return <DealAnimation players={players} round={round} room={room} playerId={playerId} onDone={()=>setDealingRoundId(null)}/>;
   }
 
   const myTurn = round.turn_player_id===playerId;
