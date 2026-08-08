@@ -137,8 +137,9 @@ function findCompleteGrouping(hand, jokerSpec) {
   const first = hand[0];
   const rest = hand.slice(1);
 
-  // Try every possible meld that includes `first`, sized 3 or 4, drawn from rest.
-  const candidates = combinations(rest, 2).concat(combinations(rest, 3));
+  // Try every possible meld that includes `first`: sets/short runs sized 3
+  // or 4 drawn from rest, plus longer runs (5+) anchored on first's suit.
+  const candidates = combinations(rest, 2).concat(combinations(rest, 3), longRunCandidates(first, hand, jokerSpec));
   for (const combo of candidates) {
     const group = [first, ...combo];
     if (!isValidMeld(group, jokerSpec)) continue;
@@ -148,6 +149,46 @@ function findCompleteGrouping(hand, jokerSpec) {
     if (sub !== null) return [group.map(c => c.id), ...sub];
   }
   return null;
+}
+
+// Runs have no upper length limit (unlike sets, capped at 4 by the suit
+// count) — a 5+ card run like 5-6-7-8-9 of one suit is perfectly legal.
+// Generating those via combinations(rest, k) for every k up to 12 would be
+// combinatorially explosive, so instead this builds run candidates
+// directly: anchor on `first`'s suit, scan every contiguous rank span
+// (length 5+) that includes `first`, and check whether the gaps can be
+// filled by however many joker cards are available. Sets and runs of
+// length 3-4 are still covered separately via small combinations.
+function longRunCandidates(first, pool, jokerSpec) {
+  if (isJokerCard(first, jokerSpec)) return [];
+  const suit = first.suit;
+  const jokerCards = pool.filter(c => c.id !== first.id && isJokerCard(c, jokerSpec));
+  const bySuit = pool.filter(c => c.suit === suit && !isJokerCard(c, jokerSpec));
+  const rankToCard = new Map();
+  for (const c of bySuit) if (!rankToCard.has(c.rank)) rankToCard.set(c.rank, c);
+
+  const results = [];
+  for (const order of [RUN_ORDER_LOW, RUN_ORDER_HIGH]) {
+    const firstPos = order.indexOf(first.rank);
+    if (firstPos === -1) continue;
+    for (let start = 0; start <= firstPos; start++) {
+      for (let end = firstPos; end < order.length; end++) {
+        const len = end - start + 1;
+        if (len < 5) continue;
+        const used = [];
+        let jokersNeeded = 0;
+        for (let p = start; p <= end; p++) {
+          const card = rankToCard.get(order[p]);
+          if (card) used.push(card);
+          else jokersNeeded++;
+        }
+        if (jokersNeeded > jokerCards.length) continue;
+        used.push(...jokerCards.slice(0, jokersNeeded));
+        results.push(used.filter(c => c.id !== first.id));
+      }
+    }
+  }
+  return results;
 }
 
 function combinations(arr, k) {
@@ -201,7 +242,7 @@ function minLooseValue(hand, jokerSpec) {
     const rest = cards.slice(1);
     let best = search(rest);
     best = { loose: [first, ...best.loose], value: cardValue(first) + best.value };
-    const candidates = combinations(rest, 2).concat(combinations(rest, 3));
+    const candidates = combinations(rest, 2).concat(combinations(rest, 3), longRunCandidates(first, cards, jokerSpec));
     for (const combo of candidates) {
       const group = [first, ...combo];
       if (!isValidMeld(group, jokerSpec)) continue;
@@ -229,7 +270,7 @@ function bestPartialGrouping(hand, jokerSpec) {
     const rest = cards.slice(1);
     let best = search(rest);
     best = { loose: [first, ...best.loose], groups: best.groups, value: cardValue(first) + best.value };
-    const candidates = combinations(rest, 2).concat(combinations(rest, 3));
+    const candidates = combinations(rest, 2).concat(combinations(rest, 3), longRunCandidates(first, cards, jokerSpec));
     for (const combo of candidates) {
       const group = [first, ...combo];
       if (!isValidMeld(group, jokerSpec)) continue;
