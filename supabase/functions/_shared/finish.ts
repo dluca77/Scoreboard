@@ -83,17 +83,20 @@ export async function finalizeRound(
       groups: g.groups,
     };
   });
-  await db.from('round_results').insert(resultRows);
-
-  for (const p of players) {
-    const delta = scores[p.id] ?? 0;
-    await db.from('room_players').update({ total_score: p.total_score + delta }).eq('id', p.id);
-  }
-
-  await db.from('rounds').update({
-    phase: 'finished',
-    winner_player_id: opts.openerPlayerId ?? null,
-  }).eq('id', round.id);
+  // These writes don't depend on each other, so fire them together instead
+  // of one network round-trip at a time — with several players that was
+  // the main source of the multi-second lag after opening a hand.
+  await Promise.all([
+    db.from('round_results').insert(resultRows),
+    // Reset everyone's "ready" flag here too — the round-end screen reuses
+    // the same lobby-style ready gate for starting the next round, so a
+    // stale ready=true from before this round shouldn't let it skip ahead.
+    ...players.map(p => db.from('room_players').update({ total_score: p.total_score + (scores[p.id] ?? 0), ready: false }).eq('id', p.id)),
+    db.from('rounds').update({
+      phase: 'finished',
+      winner_player_id: opts.openerPlayerId ?? null,
+    }).eq('id', round.id),
+  ]);
 
   const { data: room } = await db.from('rooms').select('*').eq('id', round.room_id).single();
   if (room && room.current_round >= room.round_target) {

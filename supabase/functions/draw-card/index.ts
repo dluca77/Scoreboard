@@ -42,9 +42,11 @@ Deno.serve((req) => handle(req, async (req) => {
     update.discard = round.discard.slice(0, -1);
   }
 
-  await db.from('rounds').update(update).eq('id', roundId);
   const newCards = [...hand.cards, drawnCard];
-  await db.from('hands').update({ cards: newCards }).eq('round_id', roundId).eq('player_id', caller.id);
+  await Promise.all([
+    db.from('rounds').update(update).eq('id', roundId),
+    db.from('hands').update({ cards: newCards }).eq('round_id', roundId).eq('player_id', caller.id),
+  ]);
 
   return json({ drawnCard, cards: newCards });
 }));
