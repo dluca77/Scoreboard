@@ -28,8 +28,17 @@ Deno.serve((req) => handle(req, async (req) => {
   for (let i = 0; i < 14; i++) {
     for (const p of players) hands[p.id].push(deck[idx++]);
   }
-  const openCard = deck[idx++];
-  const stock = deck.slice(idx);
+  // The open card determines the joker rank via "next rank, same suit" —
+  // that's meaningless for a printed joker card (no rank/suit to advance
+  // from), so if the shuffle happened to put one there, skip it into the
+  // stock and keep drawing until a real card turns up.
+  let openCard = deck[idx++];
+  const skippedJokers: typeof deck = [];
+  while (openCard.suit === 'J') {
+    skippedJokers.push(openCard);
+    openCard = deck[idx++];
+  }
+  const stock = shuffle([...deck.slice(idx), ...skippedJokers]);
   const jokerSpec = determineJoker(openCard);
 
   // House rule: if the exact card that got turned up as the open card
