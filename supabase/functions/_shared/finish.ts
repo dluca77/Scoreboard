@@ -1,4 +1,4 @@
-import { Card, JokerSpec, isJokerCard, bestPartialGrouping, scoreRound, RoundResultInput } from './engine.ts';
+import { Card, JokerSpec, isJokerCard, bestPartialGrouping, cardValue, ciftGrouping, scoreRound, RoundResultInput } from './engine.ts';
 
 interface PlayerRow { id: string; total_score: number; }
 interface HandRow { player_id: string; cards: Card[]; is_turning: boolean; }
@@ -13,7 +13,7 @@ export async function finalizeRound(
   round: RoundRow,
   players: PlayerRow[],
   hands: HandRow[],
-  opts: { openerPlayerId?: string; openedWithJoker?: boolean; openerLooseCards?: Card[]; openerGroups?: string[][] },
+  opts: { openerPlayerId?: string; openedWithJoker?: boolean; openedCift?: boolean; openerLooseCards?: Card[]; openerGroups?: string[][] },
 ) {
   // joker_rank is stored as a string (see start-round), but card.rank is a
   // number for numeric ranks — comparing them with the raw string would
@@ -27,15 +27,24 @@ export async function finalizeRound(
 
   // Everyone's hand — including the opener's — gets laid out for the
   // "table reveal" at round end, so the rest of the table can see how
-  // close (or not) everyone else actually was.
+  // close (or not) everyone else actually was. Non-openers get scored
+  // under whichever interpretation of their hand is best for them — the
+  // normal sets/runs grouping, or the çift (identical-pairs) grouping —
+  // since either could apply and there's no way to know which one they
+  // were actually going for.
   const grouped = new Map<string, { loose: Card[]; groups: string[][] }>();
   for (const h of hands) {
     const opened = h.player_id === opts.openerPlayerId;
     if (opened) {
       grouped.set(h.player_id, { loose: opts.openerLooseCards ?? [], groups: opts.openerGroups ?? [] });
     } else {
-      const { loose, groups } = bestPartialGrouping(h.cards, jokerSpec);
-      grouped.set(h.player_id, { loose, groups });
+      const normal = bestPartialGrouping(h.cards, jokerSpec);
+      const cift = ciftGrouping(h.cards);
+      const normalValue = normal.loose.reduce((s, c) => s + cardValue(c), 0);
+      const ciftValue = cift.loose.reduce((s, c) => s + cardValue(c), 0);
+      grouped.set(h.player_id, ciftValue < normalValue
+        ? { loose: cift.loose, groups: cift.pairs }
+        : { loose: normal.loose, groups: normal.groups });
     }
   }
 
@@ -46,6 +55,7 @@ export async function finalizeRound(
       looseCards: grouped.get(h.player_id)!.loose,
       opened,
       openedWithJoker: opened && !!opts.openedWithJoker,
+      openedCift: opened && !!opts.openedCift,
       wasTurning: h.is_turning,
     };
   });
@@ -67,6 +77,7 @@ export async function finalizeRound(
       penalty_points: scores[r.playerId],
       opened: r.opened,
       opened_with_joker: r.openedWithJoker,
+      opened_cift: r.openedCift,
       was_turning: r.wasTurning,
       hand_cards: shownCards,
       groups: g.groups,

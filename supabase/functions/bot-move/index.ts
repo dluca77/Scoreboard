@@ -1,5 +1,5 @@
 import { handle, json, requireUser, serviceClient, HttpError } from '../_shared/supa.ts';
-import { Card, JokerSpec, isFreeJoker, findCompleteGrouping, minLooseValue, canFormCompleteHand } from '../_shared/engine.ts';
+import { Card, JokerSpec, isFreeJoker, findCompleteGrouping, minLooseValue, canFormCompleteHand, ciftGrouping, canFormCompleteCift } from '../_shared/engine.ts';
 import { finalizeRound } from '../_shared/finish.ts';
 
 // Plays exactly one full bot turn (draw, then open-if-possible or
@@ -51,13 +51,28 @@ Deno.serve((req) => handle(req, async (req) => {
     await db.from('hands').update({ cards }).eq('round_id', roundId).eq('player_id', bot.id);
   }
 
-  // Can the bot go out this turn? Try each card as the leftover discard.
+  // Can the bot go out this turn? Try each card as the leftover discard —
+  // either via the normal sets/runs grouping, or via çift (7 pairs of the
+  // exact same card). Prefer çift when both are available: it scores
+  // higher (-500 vs -100, or -1000 vs -500 with the joker).
   let openGroups: string[][] | null = null;
   let leftoverCard: Card | null = null;
+  let openedCift = false;
   for (const candidate of cards) {
     const remaining = cards.filter((c) => c.id !== candidate.id);
-    const grouping = findCompleteGrouping(remaining, jokerSpec);
-    if (grouping) { openGroups = grouping; leftoverCard = candidate; break; }
+    if (canFormCompleteCift(remaining)) {
+      openGroups = ciftGrouping(remaining).pairs;
+      leftoverCard = candidate;
+      openedCift = true;
+      break;
+    }
+  }
+  if (!openGroups) {
+    for (const candidate of cards) {
+      const remaining = cards.filter((c) => c.id !== candidate.id);
+      const grouping = findCompleteGrouping(remaining, jokerSpec);
+      if (grouping) { openGroups = grouping; leftoverCard = candidate; break; }
+    }
   }
 
   if (openGroups && leftoverCard) {
@@ -66,10 +81,11 @@ Deno.serve((req) => handle(req, async (req) => {
     const { scores } = await finalizeRound(db, round, players, allHands, {
       openerPlayerId: bot.id,
       openedWithJoker,
+      openedCift,
       openerLooseCards: [],
       openerGroups: openGroups,
     });
-    return json({ acted: true, opened: true, scores });
+    return json({ acted: true, opened: true, openedCift, scores });
   }
 
   // Otherwise discard whichever card leaves the lowest-value loose hand.
@@ -81,7 +97,7 @@ Deno.serve((req) => handle(req, async (req) => {
     if (value < bestValue) { bestValue = value; bestCard = candidate; }
   }
   const remaining = cards.filter((c) => c.id !== bestCard.id);
-  const isTurning = canFormCompleteHand(remaining, jokerSpec);
+  const isTurning = canFormCompleteHand(remaining, jokerSpec) || canFormCompleteCift(remaining);
   const seatIdx = players.findIndex((p: any) => p.id === bot.id);
   const nextPlayer = players[(seatIdx + 1) % players.length];
 

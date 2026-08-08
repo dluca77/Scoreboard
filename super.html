@@ -76,7 +76,7 @@ button:active{transform:scale(0.96)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="super-engine.js?v=3"></script>
+<script src="super-engine.js?v=4"></script>
 <script type="text/babel">
 const{useState,useEffect,useRef,useMemo}=React;
 const TAP={touchAction:"manipulation",WebkitTapHighlightColor:"transparent",cursor:"pointer"};
@@ -445,7 +445,12 @@ function RulesSheet({open, onClose}){
         <Row label="Openen met joker" val="−500 (tegenstanders ×2)" color={SC.green}/>
         <Row label="Aan het draaien, ander opent" val="+500" color={SC.red}/>
         <Row label="Open kaart al in je hand bij delen" val="−20/−30/−40/−50" color={SC.green}/>
+        <Row label="Çift openen (7 identieke paren)" val="−500" color={SC.green}/>
+        <Row label="Çift-joker openen" val="−1000 (tegenstanders ×2)" color={SC.green}/>
         <Row label="Losse kaarten" val="2-10 = waarde, B/V/H = 10, A = 1"/>
+        <div style={{marginTop:10,marginBottom:2,color:SC.muted,fontSize:'0.68rem',lineHeight:1.5}}>
+          Çift = je hand bestaat uit 7 paren van exact dezelfde kaart (bv. ♥4+♥4, mogelijk met 2 decks). Gooi je als 15e kaart de vrije joker weg terwijl je 7 paren compleet zijn? Dan is dat çift-joker.
+        </div>
         <div style={{marginTop:14,marginBottom:6,color:SC.muted,fontSize:'0.72rem',textTransform:'uppercase',letterSpacing:'0.06em'}}>Vermenigvuldiger (open kaart)</div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           {[['♣','×2',SUIT_COLOR.C],['♠','×3',SUIT_COLOR.S],['♦','×4',SUIT_COLOR.D],['♥','×5',SUIT_COLOR.H]].map(([s,m,c])=>(
@@ -874,6 +879,15 @@ function Playing({roomId, playerId}){
     return detectAdjacentGroups(ordered, jokerSpec);
   }, [fanOrder.join(','), hand && hand.cards.map(c=>c.id).join(','), jokerSpec && jokerSpec.suit, jokerSpec && jokerSpec.rank]);
 
+  // Çift ("pairs"): a completely separate way to complete your hand —
+  // instead of sets/runs, all cards pair up into identical (same suit
+  // AND rank) duplicates. Checked independently of the normal grouping
+  // above, since a hand could in principle satisfy either.
+  const ciftInfo = useMemo(()=>{
+    if(!hand) return { pairs:[], loose:[] };
+    return window.ciftGrouping(hand.cards);
+  }, [hand && hand.cards.map(c=>c.id).join(',')]);
+
   // The first time a fresh round's hand shows up (14 cards, just dealt),
   // play the dealing animation once for it — tracked in a ref so a
   // realtime re-render mid-animation, or coming back to an
@@ -1261,8 +1275,19 @@ function Playing({roomId, playerId}){
     setBusy(false);
     if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
   }
+  async function openHandCift(){
+    if(ciftInfo.loose.length!==1){ setErr('Precies 1 kaart moet overblijven om af te leggen'); return; }
+    const discardId = ciftInfo.loose[0].id;
+    const cardEl = fanWrapRef.current && fanWrapRef.current.querySelector(`[data-card-id="${discardId}"]`);
+    spawnFlight(cardEl, discardRef.current, cardsById[discardId], false);
+    setBusy(true); setErr('');
+    const { data, error } = await invokeFn('open-hand',{roundId:round.id, mode:'cift', discardCardId:discardId});
+    setBusy(false);
+    if(error||(data&&data.error)) setErr((data&&data.error)||error.message);
+  }
 
   const canOpen = hand.cards.length===15 && detectedGroups.length>0 && looseIds.length===1;
+  const canOpenCift = hand.cards.length===15 && ciftInfo.pairs.length===7 && ciftInfo.loose.length===1;
   const opponents = players.filter(p=>p.id!==playerId);
 
   return (
@@ -1422,6 +1447,12 @@ function Playing({roomId, playerId}){
                 {looseIds.length===1?'✅ Compleet':`${detectedGroups.length} groep(en), ${looseIds.length} los`}
               </span>
             )}
+            {hand.cards.length===15 && canOpenCift && (
+              <span style={{fontSize:'0.66rem',fontWeight:700,color:SC.purple}}>🀄 Çift compleet!</span>
+            )}
+            {hand.cards.length===15 && !canOpenCift && ciftInfo.pairs.length>0 && (
+              <span style={{fontSize:'0.62rem',color:SC.muted}}>🀄 {ciftInfo.pairs.length}/7 paren</span>
+            )}
           </div>
           <div ref={fanWrapRef} style={{position:'relative',width:'100%',height:126*fanScale,marginTop:2}}>
             <div style={{position:'absolute',left:'50%',top:0,transform:`translateX(-50%) scale(${fanScale})`,transformOrigin:'top center',
@@ -1485,6 +1516,9 @@ function Playing({roomId, playerId}){
         <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'center',marginTop:6,paddingTop:8,borderTop:`1px solid ${SC.border}`}}>
           {canOpen && (
             <Button color={SC.gold} disabled={busy} onTap={openHand} style={{padding:'8px 16px',width:'100%',maxWidth:340}}>🏆 Open hand</Button>
+          )}
+          {canOpenCift && (
+            <Button color={SC.purple} disabled={busy} onTap={openHandCift} style={{padding:'8px 16px',width:'100%',maxWidth:340}}>🀄 Open çift (7 paren)</Button>
           )}
           <div style={{display:'flex',gap:8,justifyContent:'center',width:'100%',maxWidth:340}}>
             <Button color={SC.green} sub="Trek een kaart" disabled={!myTurn||hand.cards.length!==14||busy} onTap={()=>draw('stock')} style={{flex:1,padding:'8px 12px'}}>🂠 Trekken</Button>
