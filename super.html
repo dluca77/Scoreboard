@@ -928,8 +928,13 @@ function Playing({roomId, playerId}){
               <span style={{color:SC.gold,fontWeight:800,fontSize:'0.82rem'}}>{round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</span>
               <span style={{fontSize:'0.52rem',color:SC.gold,fontWeight:700}}>×{{C:2,S:3,D:4,H:5}[round.open_card.suit]}</span>
             </div>
-            <div style={{borderRadius:10, ...(canDraw?glowStyle:{})}}>
-              <CardBack onTap={()=>canDraw&&draw('stock')} count={round.stock.length}/>
+            <div style={{position:'relative',width:56,height:96}}>
+              <div style={{position:'absolute',left:'50%',top:36,transform:'translateX(-50%) rotate(90deg)',borderRadius:10,zIndex:1,opacity:0.85}}>
+                <Card card={round.open_card}/>
+              </div>
+              <div style={{position:'absolute',left:'50%',top:0,transform:'translateX(-50%)',borderRadius:10,zIndex:2, ...(canDraw?glowStyle:{})}}>
+                <CardBack onTap={()=>canDraw&&draw('stock')} count={round.stock.length}/>
+              </div>
             </div>
           </div>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
