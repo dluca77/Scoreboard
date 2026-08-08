@@ -14,8 +14,10 @@
 html{background:#0b1f14}
 body{
   background:
-    radial-gradient(ellipse 1100px 700px at 50% -10%, rgba(212,175,90,0.10), transparent 55%),
-    radial-gradient(ellipse 1200px 900px at 50% 50%, #163826, #0e2418 55%, #081109 100%);
+    radial-gradient(ellipse 1100px 700px at 50% -10%, rgba(212,175,90,0.12), transparent 55%),
+    radial-gradient(ellipse 900px 650px at 50% 46%, rgba(40,90,60,0.35), transparent 60%),
+    radial-gradient(ellipse 1200px 900px at 50% 50%, #17402b, #0e2418 55%, #081109 100%),
+    radial-gradient(ellipse 1400px 1400px at 50% 50%, transparent 60%, rgba(0,0,0,0.35) 100%);
   color:#f1ecd8;font-family:'Inter',system-ui,-apple-system,sans-serif;overscroll-behavior:none;min-height:100vh;
 }
 button,input{font-family:inherit;-webkit-appearance:none}
@@ -1145,7 +1147,7 @@ function Playing({roomId, playerId}){
   const opponents = players.filter(p=>p.id!==playerId);
 
   return (
-    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',paddingBottom:66,position:'relative'}}>
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',paddingBottom:70,position:'relative'}}>
       <div style={{position:'sticky',top:0,zIndex:50,display:'flex',alignItems:'center',gap:10,
         padding:'10px 14px',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
         background:'rgba(10,26,17,0.72)',borderBottom:`1px solid ${SC.border}`}}>
@@ -1177,7 +1179,10 @@ function Playing({roomId, playerId}){
       <div style={{padding:'8px 12px 0',display:'flex',flexDirection:'column',gap:8,position:'relative',zIndex:1,flex:1}}>
 
         {/* round + turn + scores + opponents (top-right), all in one compact panel */}
-        <div className="ornate-border" style={{borderRadius:14,padding:'7px 12px',background:'rgba(0,0,0,0.28)',display:'flex',justifyContent:'space-between',gap:8}}>
+        <div className="ornate-border" style={{borderRadius:14,padding:'7px 12px',
+          background:'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.3))',
+          boxShadow:'0 4px 14px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)',
+          display:'flex',justifyContent:'space-between',gap:8}}>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:'0.6rem',color:SC.muted,fontWeight:700,marginBottom:3}}>RONDE {round.round_no}/{room.round_target}</div>
             <div style={{display:'flex',flexWrap:'wrap',gap:'2px 12px'}}>
@@ -1211,14 +1216,25 @@ function Playing({roomId, playerId}){
           const canDraw = myTurn && hand.cards.length===14 && !busy;
           const glowStyle = canDraw ? {boxShadow:`0 0 0 3px ${SC.green}, 0 0 14px 1px ${SC.green}99`, animation:'glowPulse 1.6s ease-in-out infinite'} : {};
           return (
-        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:36,minHeight:120}}>
+        <div style={{flex:1,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',minHeight:120}}>
+          {/* a soft felt "table well" so the piles sit inside an
+              intentional recessed spotlight instead of floating in
+              plain empty green */}
+          <div style={{position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',
+            width:'min(94%,360px)',height:'82%',borderRadius:'50%',pointerEvents:'none',
+            background:'radial-gradient(ellipse at center, rgba(0,0,0,0.22), transparent 70%)',
+            boxShadow:'inset 0 2px 30px rgba(0,0,0,0.35)'}}/>
+          <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'center',gap:36}}>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-            <div style={{display:'flex',alignItems:'center',gap:5}}>
+            <div style={{display:'flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:20,
+              background:'rgba(0,0,0,0.25)',border:`1px solid ${SC.border}`}}>
               <span style={{fontSize:'0.56rem',color:SC.muted,fontWeight:700}}>JOKER</span>
               <span style={{color:SC.gold,fontWeight:800,fontSize:'0.82rem'}}>{round.joker_rank}{SUIT_SYMBOL[round.joker_suit]}</span>
               <span style={{fontSize:'0.52rem',color:SC.gold,fontWeight:700}}>×{{C:2,S:3,D:4,H:5}[round.open_card.suit]}</span>
             </div>
-            <div style={{position:'relative',width:56,height:96}}>
+            <div style={{position:'relative',width:56,height:96,marginTop:2}}>
+              <div style={{position:'absolute',left:'50%',top:44,width:60,height:14,transform:'translateX(-50%)',
+                background:'radial-gradient(ellipse at center, rgba(0,0,0,0.4), transparent 70%)',zIndex:0}}/>
               <div style={{position:'absolute',left:'50%',top:36,transform:'translateX(-50%) rotate(90deg)',borderRadius:10,zIndex:1,opacity:0.85}}>
                 <Card card={round.open_card}/>
               </div>
@@ -1228,12 +1244,18 @@ function Playing({roomId, playerId}){
             </div>
           </div>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-            <span style={{fontSize:'0.56rem',color:SC.muted,fontWeight:700}}>AFLEGSTAPEL</span>
-            {topDiscard
-              ? <div style={{borderRadius:10, ...(canDraw&&topDiscard?glowStyle:{opacity:0.85})}}>
-                  <Card card={topDiscard} onTap={()=>canDraw&&draw('discard')}/>
-                </div>
-              : <div style={{width:56,height:78,borderRadius:10,border:`2px dashed ${SC.border}`}}></div>}
+            <span style={{fontSize:'0.56rem',color:SC.muted,fontWeight:700,padding:'3px 10px',borderRadius:20,
+              background:'rgba(0,0,0,0.25)',border:`1px solid ${SC.border}`}}>AFLEGSTAPEL</span>
+            <div style={{position:'relative',marginTop:2}}>
+              <div style={{position:'absolute',left:'50%',bottom:-8,width:60,height:14,transform:'translateX(-50%)',
+                background:'radial-gradient(ellipse at center, rgba(0,0,0,0.4), transparent 70%)',zIndex:0}}/>
+              {topDiscard
+                ? <div style={{position:'relative',zIndex:1,borderRadius:10, ...(canDraw&&topDiscard?glowStyle:{opacity:0.85})}}>
+                    <Card card={topDiscard} onTap={()=>canDraw&&draw('discard')}/>
+                  </div>
+                : <div style={{position:'relative',zIndex:1,width:56,height:78,borderRadius:10,border:`2px dashed ${SC.border}`}}></div>}
+            </div>
+          </div>
           </div>
         </div>
           );
@@ -1342,18 +1364,25 @@ function Playing({roomId, playerId}){
       </div>
 
       {/* bottom nav bar, matching the reference layout */}
-      <div style={{position:'fixed',bottom:0,left:0,right:0,height:56,display:'flex',
-        background:'#0a1a11',borderTop:`1px solid ${SC.border}`,zIndex:60}}>
+      <div style={{position:'fixed',bottom:0,left:0,right:0,height:60,display:'flex',
+        backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',
+        background:'rgba(9,22,15,0.86)',borderTop:`1px solid ${SC.border}`,
+        boxShadow:'0 -6px 18px rgba(0,0,0,0.4)',zIndex:60}}>
         {[['📋','Regels',()=>setRulesOpen(true)],['🏆','Ranglijst',()=>setSheet('leaderboard')],
           ['🎴','Spelen',null],['📊','Statistieken',()=>{ setSheet('stats'); loadRoundHistory(); }],
-          ['💬','Chat',()=>setSheet('chat')]].map(([icon,label,fn])=>(
-          <button key={label} onPointerDown={fn||undefined} style={{...TAP,flex:1,background:label==='Spelen'?'rgba(212,175,90,0.14)':'none',
-            border:'none',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,
-            color:label==='Spelen'?SC.gold:SC.muted}}>
-            <span style={{fontSize:'1.05rem'}}>{icon}</span>
+          ['💬','Chat',()=>setSheet('chat')]].map(([icon,label,fn])=>{
+          const active = label==='Spelen';
+          return (
+          <button key={label} onPointerDown={fn||undefined} style={{...TAP,flex:1,position:'relative',background:'none',
+            border:'none',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,
+            color:active?SC.gold:SC.muted,transition:'color 0.15s'}}>
+            {active && <span style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',width:26,height:3,
+              borderRadius:2,background:`linear-gradient(90deg,${SC.goldDeep},${SC.gold})`,boxShadow:`0 0 8px ${SC.gold}99`}}/>}
+            <span style={{fontSize:'1.1rem',filter:active?`drop-shadow(0 0 6px ${SC.gold}66)`:'none',transform:active?'translateY(-1px)':'none',transition:'transform 0.15s'}}>{icon}</span>
             <span style={{fontSize:'0.55rem',fontWeight:700}}>{label}</span>
           </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
