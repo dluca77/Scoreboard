@@ -209,6 +209,34 @@ export function canFormCompleteHand(hand: Card[], jokerSpec: JokerSpec): boolean
   return findCompleteGrouping(hand, jokerSpec) !== null;
 }
 
+// Çift ("pairs") is an alternate way to complete a hand: instead of
+// sets/runs, all 14 cards pair up into 7 pairs of the exact same card
+// (same suit AND rank — possible because Super is played with 2 decks).
+// This is a completely separate mechanic from the joker system: pairing
+// is purely "does this exact card appear twice", no wildcards involved.
+function cardKey(card: Card): string { return `${card.suit}${card.rank}`; }
+
+export function ciftGrouping(hand: Card[]): { pairs: string[][]; loose: Card[] } {
+  const byKey = new Map<string, Card[]>();
+  for (const c of hand) {
+    const k = cardKey(c);
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k)!.push(c);
+  }
+  const pairs: string[][] = [];
+  const loose: Card[] = [];
+  for (const group of byKey.values()) {
+    if (group.length >= 2) pairs.push([group[0].id, group[1].id]);
+    else loose.push(...group);
+    if (group.length > 2) loose.push(...group.slice(2)); // can't happen with 2 decks, but stay safe
+  }
+  return { pairs, loose };
+}
+
+export function canFormCompleteCift(hand: Card[]): boolean {
+  return hand.length > 0 && ciftGrouping(hand).loose.length === 0;
+}
+
 // For a hand that is NOT (necessarily) fully meldable, find the decomposition
 // into melds that minimizes the point-value of the leftover loose cards.
 export function minLooseValue(hand: Card[], jokerSpec: JokerSpec): { loose: Card[]; value: number } {
@@ -273,6 +301,7 @@ export interface RoundResultInput {
   looseCards: Card[];
   opened: boolean;
   openedWithJoker: boolean;
+  openedCift: boolean;
   wasTurning: boolean;
 }
 
@@ -291,7 +320,10 @@ export function scoreRound(
   for (const r of results) {
     let pts = 0;
     if (!stockExhausted && r.opened) {
-      pts += r.openedWithJoker ? -500 : -100;
+      if (r.openedCift && r.openedWithJoker) pts += -1000;      // çift-joker
+      else if (r.openedCift) pts += -500;                       // çift
+      else if (r.openedWithJoker) pts += -500;                  // normal open with joker
+      else pts += -100;                                         // normal open
     } else {
       const loose = r.looseCards.reduce((s, c) => s + cardValue(c), 0);
       pts += loose * effMult;

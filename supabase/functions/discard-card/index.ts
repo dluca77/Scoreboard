@@ -1,5 +1,5 @@
 import { handle, json, requireUser, serviceClient, HttpError } from '../_shared/supa.ts';
-import { canFormCompleteHand, JokerSpec } from '../_shared/engine.ts';
+import { canFormCompleteHand, canFormCompleteCift, JokerSpec } from '../_shared/engine.ts';
 
 Deno.serve((req) => handle(req, async (req) => {
   const user = await requireUser(req);
@@ -33,7 +33,7 @@ Deno.serve((req) => handle(req, async (req) => {
     suit: round.joker_suit,
     rank: isNaN(Number(round.joker_rank)) ? round.joker_rank : Number(round.joker_rank),
   };
-  const isTurning = canFormCompleteHand(remaining, jokerSpec);
+  const isTurning = canFormCompleteHand(remaining, jokerSpec) || canFormCompleteCift(remaining);
 
   const seatIdx = players.findIndex(p => p.id === caller.id);
   const nextPlayer = players[(seatIdx + 1) % players.length];

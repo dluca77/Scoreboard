@@ -1,5 +1,5 @@
 import { handle, json, requireUser, serviceClient, HttpError } from '../_shared/supa.ts';
-import { buildDeck, shuffle, determineJoker, canFormCompleteHand, SUIT_MULTIPLIER } from '../_shared/engine.ts';
+import { buildDeck, shuffle, determineJoker, canFormCompleteHand, canFormCompleteCift, SUIT_MULTIPLIER } from '../_shared/engine.ts';
 
 Deno.serve((req) => handle(req, async (req) => {
   const user = await requireUser(req);
@@ -86,7 +86,7 @@ Deno.serve((req) => handle(req, async (req) => {
     player_id: p.id,
     user_id: p.user_id,
     cards: hands[p.id],
-    is_turning: canFormCompleteHand(hands[p.id], jokerSpec),
+    is_turning: canFormCompleteHand(hands[p.id], jokerSpec) || canFormCompleteCift(hands[p.id]),
   }));
   const { error: handsErr } = await db.from('hands').insert(handRows);
   if (handsErr) throw new HttpError(500, handsErr.message);
