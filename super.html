@@ -555,6 +555,116 @@ function Home({onEntered}){
   );
 }
 
+function Sheet({title, onClose, children}){
+  return (
+    <div onPointerDown={onClose} style={{position:'fixed',inset:0,zIndex:200,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'flex-end'}}>
+      <div onPointerDown={e=>e.stopPropagation()} className="slide-up ornate-border" style={{width:'100%',maxHeight:'80vh',display:'flex',flexDirection:'column',
+        background:'linear-gradient(180deg,#163826,#0e2418)',borderRadius:'20px 20px 0 0',padding:'20px 22px 24px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,flexShrink:0}}>
+          <div className="gold-text" style={{fontFamily:'Cinzel,serif',fontWeight:800,fontSize:'1.1rem'}}>{title}</div>
+          <button onPointerDown={onClose} style={{...TAP,color:SC.muted,background:'none',border:'none',fontSize:'1.3rem'}}>✕</button>
+        </div>
+        <div style={{overflowY:'auto',flex:1,minHeight:0}}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function LeaderboardSheet({players, playerId, onClose}){
+  const ranked = [...players].sort((a,b)=>a.total_score-b.total_score);
+  const medals=['🥇','🥈','🥉'];
+  return (
+    <Sheet title="Ranglijst" onClose={onClose}>
+      {ranked.map((p,i)=>(
+        <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:`1px solid ${SC.border}`}}>
+          <span style={{width:26,textAlign:'center',fontSize:'1.05rem'}}>{medals[i]||(i+1)}</span>
+          <Avatar id={p.id} name={p.display_name} size={30} isBot={p.is_bot}/>
+          <span style={{flex:1,fontWeight:p.id===playerId?800:600,color:p.id===playerId?SC.gold:SC.text,fontSize:'0.88rem'}}>
+            {p.id===playerId?'Jij':p.display_name}
+          </span>
+          <b style={{fontSize:'0.9rem'}}>{p.total_score}</b>
+        </div>
+      ))}
+      {ranked.length===0 && <div style={{color:SC.muted,fontSize:'0.82rem',textAlign:'center',padding:'20px 0'}}>Nog geen spelers</div>}
+    </Sheet>
+  );
+}
+
+function StatsSheet({roundHistory, players, onClose}){
+  const nameFor = id => { const p=players.find(p=>p.id===id); return p?p.display_name:'?'; };
+  return (
+    <Sheet title="Statistieken" onClose={onClose}>
+      {roundHistory===null && <div style={{color:SC.muted,fontSize:'0.82rem',textAlign:'center',padding:'20px 0'}}>Laden…</div>}
+      {roundHistory!==null && roundHistory.length===0 && (
+        <div style={{color:SC.muted,fontSize:'0.82rem',textAlign:'center',padding:'20px 0'}}>Nog geen afgeronde rondes</div>
+      )}
+      {roundHistory && roundHistory.map(r=>(
+        <div key={r.round_no} style={{marginBottom:14}}>
+          <div style={{color:SC.muted,fontSize:'0.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:6}}>Ronde {r.round_no}</div>
+          {r.results.map(res=>(
+            <div key={res.player_id} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:'0.82rem'}}>
+              <span style={{color:SC.text}}>{nameFor(res.player_id)}{res.was_turning?' 🔄':''}{res.opened_with_joker?' 🃟':''}</span>
+              <b style={{color:res.penalty_points>0?SC.red:SC.green}}>+{res.penalty_points}</b>
+            </div>
+          ))}
+        </div>
+      ))}
+    </Sheet>
+  );
+}
+
+function ChatSheet({messages, playerId, onSend, onClose}){
+  const [text,setText]=useState('');
+  const scrollRef=useRef(null);
+  useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; },[messages.length]);
+  function submit(){ if(!text.trim()) return; onSend(text); setText(''); }
+  return (
+    <Sheet title="Chat" onClose={onClose}>
+      <div ref={scrollRef} style={{display:'flex',flexDirection:'column',gap:6,maxHeight:'46vh',overflowY:'auto',marginBottom:10}}>
+        {messages.length===0 && <div style={{color:SC.muted,fontSize:'0.82rem',textAlign:'center',padding:'20px 0'}}>Nog geen berichten</div>}
+        {messages.map((m,i)=>(
+          <div key={i} style={{alignSelf:m.playerId===playerId?'flex-end':'flex-start',maxWidth:'78%',
+            background:m.playerId===playerId?'rgba(212,175,90,0.18)':SC.surface,border:`1px solid ${SC.border}`,
+            borderRadius:12,padding:'6px 10px'}}>
+            {m.playerId!==playerId && <div style={{fontSize:'0.62rem',color:SC.gold,fontWeight:700,marginBottom:1}}>{m.name}</div>}
+            <div style={{fontSize:'0.84rem',color:SC.text,wordBreak:'break-word'}}>{m.text}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{display:'flex',gap:8,flexShrink:0}}>
+        <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') submit();}}
+          placeholder="Bericht…" style={{flex:1,padding:'9px 12px',borderRadius:14,border:`1.5px solid ${SC.border}`,
+          background:'rgba(0,0,0,0.28)',color:SC.text,fontSize:'0.9rem'}}/>
+        <button onPointerDown={submit} style={{...TAP,padding:'0 16px',borderRadius:12,border:'none',
+          background:SC.gold,color:'#1a2e1e',fontWeight:800,fontSize:'0.85rem'}}>Stuur</button>
+      </div>
+    </Sheet>
+  );
+}
+
+function RoomMenuSheet({room, onOpenRules, onOpenLeaderboard, onOpenStats, onLeave, onClose}){
+  const Item=({icon,label,onTap,danger})=>(
+    <button onPointerDown={onTap} style={{...TAP,width:'100%',display:'flex',alignItems:'center',gap:12,
+      padding:'12px 4px',background:'none',border:'none',borderBottom:`1px solid ${SC.border}`,
+      color:danger?SC.red:SC.text,fontSize:'0.9rem',fontWeight:700,textAlign:'left'}}>
+      <span style={{fontSize:'1.1rem'}}>{icon}</span>{label}
+    </button>
+  );
+  return (
+    <Sheet title="Menu" onClose={onClose}>
+      {room && (
+        <div style={{textAlign:'center',padding:'6px 0 16px',color:SC.muted,fontSize:'0.72rem'}}>
+          Room-code <b style={{color:SC.gold,letterSpacing:2,fontSize:'0.9rem'}}>{room.code}</b>
+        </div>
+      )}
+      <Item icon="📋" label="Regels" onTap={onOpenRules}/>
+      <Item icon="🏆" label="Ranglijst" onTap={onOpenLeaderboard}/>
+      <Item icon="📊" label="Statistieken" onTap={onOpenStats}/>
+      <Item icon="🚪" label="Verlaat kamer" onTap={onLeave} danger/>
+    </Sheet>
+  );
+}
+
 // ── Lobby: waiting room ──
 function Lobby({roomId, playerId, onStarted}){
   const [room,setRoom]=useState(null);
@@ -686,6 +796,10 @@ function Playing({roomId, playerId}){
   const [busy,setBusy]=useState(false);
   const [results,setResults]=useState(null);
   const [rulesOpen,setRulesOpen]=useState(false);
+  const [sheet,setSheet]=useState(null); // 'menu' | 'settings' | 'leaderboard' | 'stats' | 'chat'
+  const [roundHistory,setRoundHistory]=useState(null); // [{round_no, results:[...]}]
+  const [chatMessages,setChatMessages]=useState([]);
+  const chatChannelRef=useRef(null);
   const [fanOrder,setFanOrder]=useState([]); // manual drag order of your whole hand
   const [dragId,setDragId]=useState(null);
   const [dragDX,setDragDX]=useState(0);
@@ -747,9 +861,34 @@ function Playing({roomId, playerId}){
       .on('postgres_changes',{event:'*',schema:'public',table:'hands'},loadAll)
       .on('postgres_changes',{event:'*',schema:'public',table:'room_players',filter:`room_id=eq.${roomId}`},loadAll)
       .on('postgres_changes',{event:'*',schema:'public',table:'round_results'},loadAll)
+      .on('broadcast',{event:'chat'},({payload})=>{ setChatMessages(m=>[...m,payload]); })
       .subscribe();
+    chatChannelRef.current = ch;
     return ()=>sb.removeChannel(ch);
   },[roomId]);
+
+  function sendChat(text){
+    const t = text.trim();
+    if(!t || !chatChannelRef.current) return;
+    const me = players.find(p=>p.id===playerId);
+    chatChannelRef.current.send({type:'broadcast', event:'chat',
+      payload:{ playerId, name: me?me.display_name:'Jij', text:t, at:Date.now() }});
+  }
+
+  // Loads every finished round's scores for this room, on demand (only
+  // when the stats sheet is actually opened) rather than on every
+  // realtime tick like the live round data.
+  async function loadRoundHistory(){
+    const { data:rounds } = await sb.from('rounds').select('id,round_no').eq('room_id',roomId).order('round_no');
+    if(!rounds || rounds.length===0){ setRoundHistory([]); return; }
+    const ids = rounds.map(r=>r.id);
+    const { data:allResults } = await sb.from('round_results').select('*').in('round_id',ids);
+    const byRound = rounds.map(r=>({
+      round_no: r.round_no,
+      results: (allResults||[]).filter(res=>res.round_id===r.id),
+    })).filter(r=>r.results.length>0);
+    setRoundHistory(byRound);
+  }
 
   useEffect(()=>{ setSelected([]); },[hand && hand.cards && hand.cards.length]);
 
@@ -1007,15 +1146,26 @@ function Playing({roomId, playerId}){
       <div style={{position:'sticky',top:0,zIndex:50,display:'flex',alignItems:'center',gap:10,
         padding:'10px 14px',backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
         background:'rgba(10,26,17,0.72)',borderBottom:`1px solid ${SC.border}`}}>
-        <button onPointerDown={()=>{ try{localStorage.removeItem('super_device');}catch(e){}; window.location.href='index.html'; }}
+        <button onPointerDown={()=>setSheet('menu')}
           style={{...TAP,width:34,height:34,borderRadius:10,border:`1px solid ${SC.border}`,background:'rgba(255,255,255,0.06)',color:SC.gold,fontSize:'1.1rem',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>☰</button>
         <div style={{flex:1,textAlign:'center'}}>
           <div style={{fontSize:'0.85rem',marginBottom:-4}}>👑</div>
           <h1 className="gold-text" style={{fontFamily:'Cinzel,serif',fontSize:'1.5rem',fontWeight:900,letterSpacing:'0.03em',margin:0,lineHeight:1}}>SUPER</h1>
         </div>
-        <button onPointerDown={()=>setRulesOpen(true)} style={{...TAP,width:34,height:34,borderRadius:10,border:`1px solid ${SC.border}`,background:'rgba(255,255,255,0.06)',color:SC.gold,fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>⚙</button>
+        <button onPointerDown={()=>setSheet('settings')} style={{...TAP,width:34,height:34,borderRadius:10,border:`1px solid ${SC.border}`,background:'rgba(255,255,255,0.06)',color:SC.gold,fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>⚙</button>
       </div>
       <RulesSheet open={rulesOpen} onClose={()=>setRulesOpen(false)}/>
+      {(sheet==='menu'||sheet==='settings') && (
+        <RoomMenuSheet room={room}
+          onOpenRules={()=>{ setSheet(null); setRulesOpen(true); }}
+          onOpenLeaderboard={()=>setSheet('leaderboard')}
+          onOpenStats={()=>{ setSheet('stats'); loadRoundHistory(); }}
+          onLeave={()=>{ if(window.confirm('Kamer verlaten?')){ try{localStorage.removeItem('super_device');}catch(e){}; window.location.href='index.html'; } }}
+          onClose={()=>setSheet(null)}/>
+      )}
+      {sheet==='leaderboard' && <LeaderboardSheet players={players} playerId={playerId} onClose={()=>setSheet(null)}/>}
+      {sheet==='stats' && <StatsSheet roundHistory={roundHistory} players={players} onClose={()=>setSheet(null)}/>}
+      {sheet==='chat' && <ChatSheet messages={chatMessages} playerId={playerId} onSend={sendChat} onClose={()=>setSheet(null)}/>}
 
       {/* faint table watermark */}
       <div style={{position:'absolute',top:'34%',left:'50%',transform:'translate(-50%,-50%)',fontFamily:'Cinzel,serif',
@@ -1188,12 +1338,12 @@ function Playing({roomId, playerId}){
         </div>
       </div>
 
-      {/* bottom nav bar, matching the reference layout — only Regels/Spelen are wired up */}
+      {/* bottom nav bar, matching the reference layout */}
       <div style={{position:'fixed',bottom:0,left:0,right:0,height:56,display:'flex',
         background:'#0a1a11',borderTop:`1px solid ${SC.border}`,zIndex:60}}>
-        {[['📋','Regels',()=>setRulesOpen(true)],['🏆','Ranglijst',()=>setErr('Ranglijst komt binnenkort')],
-          ['🎴','Spelen',null],['📊','Statistieken',()=>setErr('Statistieken komen binnenkort')],
-          ['💬','Chat',()=>setErr('Chat komt binnenkort')]].map(([icon,label,fn])=>(
+        {[['📋','Regels',()=>setRulesOpen(true)],['🏆','Ranglijst',()=>setSheet('leaderboard')],
+          ['🎴','Spelen',null],['📊','Statistieken',()=>{ setSheet('stats'); loadRoundHistory(); }],
+          ['💬','Chat',()=>setSheet('chat')]].map(([icon,label,fn])=>(
           <button key={label} onPointerDown={fn||undefined} style={{...TAP,flex:1,background:label==='Spelen'?'rgba(212,175,90,0.14)':'none',
             border:'none',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:2,
             color:label==='Spelen'?SC.gold:SC.muted}}>
