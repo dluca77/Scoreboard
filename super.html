@@ -97,6 +97,7 @@ const SC = {
   gold:'#d4af5a', goldDeep:'#a9791f', green:'#39a860', red:'#d9607f', blue:'#4f8fe0',
   purple:'#a06ae8', muted:'#a9b8a9', text:'#f1ecd8', felt:'#123320', feltDeep:'#0a1f13'
 };
+const GROUP_COLORS=[SC.green,SC.blue,SC.gold,SC.purple];
 
 function cardLabel(card){
   if(card.suit==='J') return '🃟';
@@ -1081,13 +1082,34 @@ function Playing({roomId, playerId}){
       <div style={{minHeight:'100vh'}}>
         <TopBar title={`Ronde ${round.round_no}`} sub="Klaar"/>
         <div className="fade-in" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:'24px 24px 32px'}}>
+          <div style={{color:SC.muted,fontSize:'0.72rem',textTransform:'uppercase',letterSpacing:'0.08em'}}>Alle handen op tafel</div>
           <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:8}}>
-            {results && players.map(p=>{
+            {results && players.map((p,pi)=>{
               const r=results.find(x=>x.player_id===p.id);
+              const groupIdOf = {};
+              if(r) r.groups.forEach((g,gi)=>g.forEach(id=>{ groupIdOf[id]=gi; }));
               return (
-                <div key={p.id} style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',padding:'13px 16px',background:SC.surface,border:`1px solid ${SC.border}`,borderRadius:14}}>
-                  <span style={{fontWeight:700}}>{p.display_name}{r&&r.opened?(r.opened_with_joker?' 🃟':' 🏆'):''}{r&&r.was_turning?' 🔄':''}</span>
-                  <span style={{fontWeight:800,color:r&&r.penalty_points<0?SC.green:SC.text}}>{r?(r.penalty_points>0?'+':'')+r.penalty_points:'…'}</span>
+                <div key={p.id} className="slide-up" style={{animationDelay:`${pi*0.12}s`,
+                  width:'100%',padding:'13px 14px',background:SC.surface,border:`1px solid ${SC.border}`,borderRadius:14}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:r&&r.hand_cards.length?8:0}}>
+                    <span style={{fontWeight:700,fontSize:'0.88rem'}}>{p.display_name}{r&&r.opened?(r.opened_with_joker?' 🃟':' 🏆'):''}{r&&r.was_turning?' 🔄':''}</span>
+                    <span style={{fontWeight:800,color:r&&r.penalty_points<0?SC.green:SC.text}}>{r?(r.penalty_points>0?'+':'')+r.penalty_points:'…'}</span>
+                  </div>
+                  {r && r.hand_cards.length>0 && (
+                    <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                      {r.hand_cards.map((c,ci)=>{
+                        const gIdx = groupIdOf[c.id];
+                        const markerColor = gIdx!=null ? GROUP_COLORS[gIdx%GROUP_COLORS.length] : SC.red;
+                        return (
+                          <div key={c.id} className="pop" style={{animationDelay:`${pi*0.12+ci*0.03}s`,animationFillMode:'both',position:'relative'}}>
+                            <Card card={c} small/>
+                            <div style={{position:'absolute',left:'50%',bottom:-3,transform:'translateX(-50%)',width:14,height:3,
+                              borderRadius:2,background:markerColor}}/>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1204,6 +1226,8 @@ function Playing({roomId, playerId}){
   }
   async function openHand(){
     if(looseIds.length!==1){ setErr('Precies 1 kaart moet overblijven om af te leggen'); return; }
+    const cardEl = fanWrapRef.current && fanWrapRef.current.querySelector(`[data-card-id="${looseIds[0]}"]`);
+    spawnFlight(cardEl, discardRef.current, cardsById[looseIds[0]], false);
     setBusy(true); setErr('');
     const { data, error } = await invokeFn('open-hand',{roundId:round.id, groups:detectedGroups, discardCardId:looseIds[0]});
     setBusy(false);
@@ -1385,7 +1409,6 @@ function Playing({roomId, playerId}){
                   : fanIds;
                 const n=displayIds.length, mid=(n-1)/2;
                 const cardW=56, cardH=78;
-                const GROUP_COLORS=[SC.green,SC.blue,SC.gold,SC.purple];
                 return displayIds.map((id,i)=>{
                   const c=cardsById[id];
                   if(!c) return null;

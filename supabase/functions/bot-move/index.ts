@@ -67,6 +67,7 @@ Deno.serve((req) => handle(req, async (req) => {
       openerPlayerId: bot.id,
       openedWithJoker,
       openerLooseCards: [],
+      openerGroups: openGroups,
     });
     return json({ acted: true, opened: true, scores });
   }
