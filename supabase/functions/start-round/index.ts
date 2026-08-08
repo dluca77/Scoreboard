@@ -1,5 +1,5 @@
 import { handle, json, requireUser, serviceClient, HttpError } from '../_shared/supa.ts';
-import { buildDeck, shuffle, determineJoker, canFormCompleteHand } from '../_shared/engine.ts';
+import { buildDeck, shuffle, determineJoker, canFormCompleteHand, SUIT_MULTIPLIER } from '../_shared/engine.ts';
 
 Deno.serve((req) => handle(req, async (req) => {
   const user = await requireUser(req);
@@ -32,6 +32,19 @@ Deno.serve((req) => handle(req, async (req) => {
   const stock = deck.slice(idx);
   const jokerSpec = determineJoker(openCard);
 
+  // House rule: if the exact card that got turned up as the open card
+  // (same suit + rank, not just the joker rank) was also dealt into your
+  // starting hand, that's an immediate penalty — same per-suit scale as
+  // the end-of-round multiplier (club 2, spade 3, diamond 4, heart 5),
+  // times 10, per matching card (you can hold both copies from the two
+  // decks).
+  const dealPenaltyPerCard = SUIT_MULTIPLIER[openCard.suit] * 10;
+  const dealPenalties: Record<string, number> = {};
+  for (const p of players) {
+    const matches = hands[p.id].filter(c => c.suit === openCard.suit && c.rank === openCard.rank).length;
+    if (matches > 0) dealPenalties[p.id] = matches * dealPenaltyPerCard;
+  }
+
   const dealerSeat = (roundNo - 1) % players.length;
   const firstTurnSeat = (dealerSeat + 1) % players.length;
   const firstTurnPlayer = players[firstTurnSeat];
@@ -47,10 +60,16 @@ Deno.serve((req) => handle(req, async (req) => {
       joker_suit: jokerSpec.suit,
       joker_rank: String(jokerSpec.rank),
       turn_player_id: firstTurnPlayer.id,
+      deal_penalties: dealPenalties,
     })
     .select()
     .single();
   if (roundErr) throw new HttpError(500, roundErr.message);
+
+  for (const p of players) {
+    const penalty = dealPenalties[p.id];
+    if (penalty) await db.from('room_players').update({ total_score: p.total_score + penalty }).eq('id', p.id);
+  }
 
   const handRows = players.map(p => ({
     round_id: round.id,
