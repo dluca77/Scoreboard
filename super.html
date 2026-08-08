@@ -142,15 +142,16 @@ function fanNearestIndex(x, n){
 
 // Groups are no longer a separate manual step — arranging your hand IS
 // the grouping action. Scans left to right and greedily claims the
-// longest valid meld (4 cards, then 3) starting at each position;
-// anything that doesn't fit into a contiguous run of 3+ stays loose.
+// longest valid meld starting at each position (a run can be longer
+// than 4 cards, unlike a set); anything that doesn't fit into a
+// contiguous run of 3+ stays loose.
 function detectAdjacentGroups(orderedCards, jokerSpec){
   const groups = [];
   let i = 0;
   const n = orderedCards.length;
   while(i < n){
     let matched = null;
-    for(let len=Math.min(4, n-i); len>=3; len--){
+    for(let len=Math.min(13, n-i); len>=3; len--){
       const slice = orderedCards.slice(i, i+len);
       if(window.isValidMeld(slice, jokerSpec)){ matched = slice; break; }
     }
