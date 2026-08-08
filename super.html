@@ -443,7 +443,7 @@ function RulesSheet({open, onClose}){
         <Row label="Normaal openen" val="−100" color={SC.green}/>
         <Row label="Openen met joker" val="−500 (tegenstanders ×2)" color={SC.green}/>
         <Row label="Aan het draaien, ander opent" val="+500" color={SC.red}/>
-        <Row label="Open kaart al in je hand bij delen" val="+20/+30/+40/+50" color={SC.red}/>
+        <Row label="Open kaart al in je hand bij delen" val="−20/−30/−40/−50" color={SC.green}/>
         <Row label="Losse kaarten" val="2-10 = waarde, B/V/H = 10, A = 1"/>
         <div style={{marginTop:14,marginBottom:6,color:SC.muted,fontSize:'0.72rem',textTransform:'uppercase',letterSpacing:'0.06em'}}>Vermenigvuldiger (open kaart)</div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
@@ -1348,10 +1348,10 @@ function Playing({roomId, playerId}){
           </div>
         )}
 
-        {round.deal_penalties && round.deal_penalties[playerId] > 0 && (
-          <div className="pop" style={{textAlign:'center',color:SC.red,fontSize:'0.74rem',fontWeight:800,padding:'6px 12px',
-            borderRadius:10,background:'rgba(217,96,127,0.14)',border:`1px solid ${SC.red}55`}}>
-            😬 Je had de open kaart ({round.open_card.rank}{SUIT_SYMBOL[round.open_card.suit]}) al in je hand — +{round.deal_penalties[playerId]} strafpunten
+        {round.deal_penalties && round.deal_penalties[playerId] < 0 && (
+          <div className="pop" style={{textAlign:'center',color:SC.green,fontSize:'0.74rem',fontWeight:800,padding:'6px 12px',
+            borderRadius:10,background:'rgba(57,168,96,0.14)',border:`1px solid ${SC.green}55`}}>
+            🍀 Je had de open kaart ({round.open_card.rank}{SUIT_SYMBOL[round.open_card.suit]}) al in je hand — {round.deal_penalties[playerId]} punten
           </div>
         )}
 

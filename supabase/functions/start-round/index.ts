@@ -34,15 +34,16 @@ Deno.serve((req) => handle(req, async (req) => {
 
   // House rule: if the exact card that got turned up as the open card
   // (same suit + rank, not just the joker rank) was also dealt into your
-  // starting hand, that's an immediate penalty — same per-suit scale as
-  // the end-of-round multiplier (club 2, spade 3, diamond 4, heart 5),
-  // times 10, per matching card (you can hold both copies from the two
-  // decks).
-  const dealPenaltyPerCard = SUIT_MULTIPLIER[openCard.suit] * 10;
+  // starting hand, that's an immediate bonus (negative points, same sign
+  // convention as opening — lower total_score is better) — same per-suit
+  // scale as the end-of-round multiplier (club 2, spade 3, diamond 4,
+  // heart 5), times 10, per matching card (you can hold both copies from
+  // the two decks).
+  const dealBonusPerCard = -SUIT_MULTIPLIER[openCard.suit] * 10;
   const dealPenalties: Record<string, number> = {};
   for (const p of players) {
     const matches = hands[p.id].filter(c => c.suit === openCard.suit && c.rank === openCard.rank).length;
-    if (matches > 0) dealPenalties[p.id] = matches * dealPenaltyPerCard;
+    if (matches > 0) dealPenalties[p.id] = matches * dealBonusPerCard;
   }
 
   const dealerSeat = (roundNo - 1) % players.length;
