@@ -42,9 +42,29 @@ export function determineJoker(openCard: Card): JokerSpec {
   return { suit: openCard.suit, rank: nextRankForJoker(openCard.rank) };
 }
 
+// Is this physical card one of the round's 4 joker cards (2 natural + 2
+// printed)? Used for general "is this card special" purposes (candidate
+// generation) — meld validation itself distinguishes the two kinds below,
+// since they behave very differently.
 export function isJokerCard(card: Card, jokerSpec: JokerSpec): boolean {
   if (card.suit === 'J') return true;
   return card.suit === jokerSpec.suit && card.rank === jokerSpec.rank;
+}
+
+// The "free" joker: an actual physical card of this round's designated
+// rank+suit (e.g. the real ♥9 when ♥8 is the open card). Fully flexible —
+// may stand in for any missing card in a meld.
+export function isFreeJoker(card: Card, jokerSpec: JokerSpec): boolean {
+  return card.suit === jokerSpec.suit && card.rank === jokerSpec.rank;
+}
+
+// The 2 printed joker cards are NOT flexible wildcards — they specifically
+// take the place of this round's designated joker card (the free joker)
+// and nothing else. So before validating a meld, replace each printed
+// joker with that literal card identity; whether it actually fits is then
+// just ordinary same-suit/same-rank matching, no special-casing needed.
+function substitutePrintedJokers(cards: Card[], jokerSpec: JokerSpec): Card[] {
+  return cards.map(c => c.suit === 'J' ? { suit: jokerSpec.suit, rank: jokerSpec.rank, id: c.id } : c);
 }
 
 export function cardValue(card: Card): number {
@@ -56,34 +76,36 @@ export function cardValue(card: Card): number {
 const RUN_ORDER_LOW: Rank[] = ['A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K'];
 const RUN_ORDER_HIGH: Rank[] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'A'];
 
-export function isValidRun(cards: Card[], jokerSpec: JokerSpec): boolean {
-  if (cards.length < 3) return false;
-  const real = cards.filter(c => !isJokerCard(c, jokerSpec));
-  const jokerCount = cards.length - real.length;
+export function isValidRun(cardsIn: Card[], jokerSpec: JokerSpec): boolean {
+  if (cardsIn.length < 3) return false;
+  const freeJokers = cardsIn.filter(c => isFreeJoker(c, jokerSpec));
+  const real = substitutePrintedJokers(cardsIn.filter(c => !isFreeJoker(c, jokerSpec)), jokerSpec);
+  const jokerCount = freeJokers.length; // only free jokers are flexible
   if (real.length === 0) return true;
   const suit = real[0].suit;
   if (!real.every(c => c.suit === suit)) return false;
   const rankSet = real.map(c => c.rank);
-  if (new Set(rankSet).size !== rankSet.length) return false;
+  if (new Set(rankSet).size !== rankSet.length) return false; // catches e.g. 2 printed jokers colliding
 
   const tryOrder = (order: Rank[]) => {
     const positions = real.map(c => order.indexOf(c.rank)).sort((a, b) => a - b);
     if (positions.some(p => p === -1)) return false;
     const lo = positions[0], hi = positions[positions.length - 1];
     const span = hi - lo + 1;
-    if (span > cards.length) return false;
+    if (span > cardsIn.length) return false;
     const need = span - real.length;
     if (need > jokerCount) return false;
     const extra = jokerCount - need;
-    return span + extra === cards.length || extra === 0;
+    return span + extra === cardsIn.length || extra === 0;
   };
   return tryOrder(RUN_ORDER_LOW) || tryOrder(RUN_ORDER_HIGH);
 }
 
-export function isValidSet(cards: Card[], jokerSpec: JokerSpec): boolean {
-  if (cards.length < 3 || cards.length > 4) return false;
-  const real = cards.filter(c => !isJokerCard(c, jokerSpec));
-  const jokerCount = cards.length - real.length;
+export function isValidSet(cardsIn: Card[], jokerSpec: JokerSpec): boolean {
+  if (cardsIn.length < 3 || cardsIn.length > 4) return false;
+  const freeJokers = cardsIn.filter(c => isFreeJoker(c, jokerSpec));
+  const real = substitutePrintedJokers(cardsIn.filter(c => !isFreeJoker(c, jokerSpec)), jokerSpec);
+  const jokerCount = freeJokers.length;
   if (real.length === 0) return true;
   const rank = real[0].rank;
   if (!real.every(c => c.rank === rank)) return false;

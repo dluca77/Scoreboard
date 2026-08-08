@@ -1,5 +1,5 @@
 import { handle, json, requireUser, serviceClient, HttpError } from '../_shared/supa.ts';
-import { validateGrouping, isJokerCard, JokerSpec } from '../_shared/engine.ts';
+import { validateGrouping, isFreeJoker, JokerSpec } from '../_shared/engine.ts';
 import { finalizeRound } from '../_shared/finish.ts';
 
 Deno.serve((req) => handle(req, async (req) => {
@@ -35,7 +35,11 @@ Deno.serve((req) => handle(req, async (req) => {
     throw new HttpError(400, 'Invalid grouping — hand is not a valid complete meld with exactly one leftover card');
   }
 
-  const openedWithJoker = isJokerCard(looseCards[0], jokerSpec);
+  // "Opening with joker" only counts when the discarded card is the free
+  // (real) joker — discarding a printed joker card is just a normal open,
+  // since the printed joker only ever stands in for the free joker, it
+  // isn't itself the special card this bonus is about.
+  const openedWithJoker = isFreeJoker(looseCards[0], jokerSpec);
 
   const { data: allHands, error: allHandsErr } = await db.from('hands').select('*').eq('round_id', roundId);
   if (allHandsErr) throw new HttpError(500, allHandsErr.message);

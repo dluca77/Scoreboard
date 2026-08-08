@@ -45,9 +45,28 @@ function determineJoker(openCard) {
 }
 
 // Is this physical card one of the round's 4 joker cards (2 natural + 2 printed)?
+// Used for general "is this card special" purposes (loose-card display,
+// candidate generation) — meld validation itself distinguishes the two
+// kinds below, since they behave very differently.
 function isJokerCard(card, jokerSpec) {
   if (card.suit === 'J') return true;
   return card.suit === jokerSpec.suit && card.rank === jokerSpec.rank;
+}
+
+// The "free" joker: an actual physical card of this round's designated
+// rank+suit (e.g. the real ♥9 when ♥8 is the open card). Fully flexible —
+// may stand in for any missing card in a meld.
+function isFreeJoker(card, jokerSpec) {
+  return card.suit === jokerSpec.suit && card.rank === jokerSpec.rank;
+}
+
+// The 2 printed joker cards are NOT flexible wildcards — they specifically
+// take the place of this round's designated joker card (the free joker)
+// and nothing else. So before validating a meld, replace each printed
+// joker with that literal card identity; whether it actually fits is then
+// just ordinary same-suit/same-rank matching, no special-casing needed.
+function substitutePrintedJokers(cards, jokerSpec) {
+  return cards.map(c => c.suit === 'J' ? { suit: jokerSpec.suit, rank: jokerSpec.rank, id: c.id } : c);
 }
 
 function cardValue(card) {
@@ -61,15 +80,16 @@ function cardValue(card) {
 const RUN_ORDER_LOW = ['A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K'];
 const RUN_ORDER_HIGH = [2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'A'];
 
-function isValidRun(cards, jokerSpec) {
-  if (cards.length < 3) return false;
-  const real = cards.filter(c => !isJokerCard(c, jokerSpec));
-  const jokerCount = cards.length - real.length;
-  if (real.length === 0) return true; // all jokers, trivially a run of jokers
+function isValidRun(cardsIn, jokerSpec) {
+  if (cardsIn.length < 3) return false;
+  const freeJokers = cardsIn.filter(c => isFreeJoker(c, jokerSpec));
+  const real = substitutePrintedJokers(cardsIn.filter(c => !isFreeJoker(c, jokerSpec)), jokerSpec);
+  const jokerCount = freeJokers.length; // only free jokers are flexible
+  if (real.length === 0) return true; // all free jokers, trivially a run
   const suit = real[0].suit;
   if (!real.every(c => c.suit === suit)) return false;
   const rankSet = real.map(c => c.rank);
-  if (new Set(rankSet).size !== rankSet.length) return false; // no duplicate ranks
+  if (new Set(rankSet).size !== rankSet.length) return false; // catches e.g. 2 printed jokers colliding
 
   return tryOrder(RUN_ORDER_LOW) || tryOrder(RUN_ORDER_HIGH);
 
@@ -78,19 +98,20 @@ function isValidRun(cards, jokerSpec) {
     if (positions.some(p => p === -1)) return false;
     const lo = positions[0], hi = positions[positions.length - 1];
     const span = hi - lo + 1;
-    if (span > cards.length) return false; // gaps too big even with jokers
-    const need = span - real.length; // jokers needed to fill gaps in this span
+    if (span > cardsIn.length) return false; // gaps too big even with free jokers
+    const need = span - real.length; // free jokers needed to fill gaps in this span
     if (need > jokerCount) return false;
-    // remaining jokers (beyond what's needed to fill internal gaps) must extend the run
+    // remaining free jokers (beyond what's needed to fill internal gaps) must extend the run
     const extra = jokerCount - need;
-    return span + extra === cards.length || extra === 0;
+    return span + extra === cardsIn.length || extra === 0;
   }
 }
 
-function isValidSet(cards, jokerSpec) {
-  if (cards.length < 3 || cards.length > 4) return false;
-  const real = cards.filter(c => !isJokerCard(c, jokerSpec));
-  const jokerCount = cards.length - real.length;
+function isValidSet(cardsIn, jokerSpec) {
+  if (cardsIn.length < 3 || cardsIn.length > 4) return false;
+  const freeJokers = cardsIn.filter(c => isFreeJoker(c, jokerSpec));
+  const real = substitutePrintedJokers(cardsIn.filter(c => !isFreeJoker(c, jokerSpec)), jokerSpec);
+  const jokerCount = freeJokers.length;
   if (real.length === 0) return true;
   const rank = real[0].rank;
   if (!real.every(c => c.rank === rank)) return false;
@@ -290,8 +311,9 @@ function bestPartialGrouping(hand, jokerSpec) {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     SUITS, RANKS, SUIT_MULTIPLIER,
-    buildDeck, shuffle, determineJoker, isJokerCard, cardValue,
+    buildDeck, shuffle, determineJoker, isJokerCard, isFreeJoker, cardValue,
     isValidRun, isValidSet, isValidMeld, validateGrouping,
     canFormCompleteHand, findCompleteGrouping, scoreRound, minLooseValue,
+    bestPartialGrouping,
   };
 }

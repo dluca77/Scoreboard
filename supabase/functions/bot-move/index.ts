@@ -1,5 +1,5 @@
 import { handle, json, requireUser, serviceClient, HttpError } from '../_shared/supa.ts';
-import { Card, JokerSpec, isJokerCard, findCompleteGrouping, minLooseValue, canFormCompleteHand } from '../_shared/engine.ts';
+import { Card, JokerSpec, isFreeJoker, findCompleteGrouping, minLooseValue, canFormCompleteHand } from '../_shared/engine.ts';
 import { finalizeRound } from '../_shared/finish.ts';
 
 // Plays exactly one full bot turn (draw, then open-if-possible or
@@ -61,7 +61,7 @@ Deno.serve((req) => handle(req, async (req) => {
   }
 
   if (openGroups && leftoverCard) {
-    const openedWithJoker = isJokerCard(leftoverCard, jokerSpec);
+    const openedWithJoker = isFreeJoker(leftoverCard, jokerSpec);
     const { data: allHands } = await db.from('hands').select('*').eq('round_id', roundId);
     const { scores } = await finalizeRound(db, round, players, allHands, {
       openerPlayerId: bot.id,
