@@ -11,26 +11,52 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{background:#0b1f14}
+html{background:#060f0a}
 body{
   background:
-    radial-gradient(ellipse 1100px 700px at 50% -10%, rgba(212,175,90,0.12), transparent 55%),
-    radial-gradient(ellipse 900px 650px at 50% 46%, rgba(40,90,60,0.35), transparent 60%),
-    radial-gradient(ellipse 1200px 900px at 50% 50%, #17402b, #0e2418 55%, #081109 100%),
-    radial-gradient(ellipse 1400px 1400px at 50% 50%, transparent 60%, rgba(0,0,0,0.35) 100%);
+    radial-gradient(ellipse 1400px 1400px at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%),
+    radial-gradient(ellipse 1200px 900px at 50% 50%, #143423, #0a1c12 55%, #050c07 100%);
   color:#f1ecd8;font-family:'Inter',system-ui,-apple-system,sans-serif;overscroll-behavior:none;min-height:100vh;
+  position:relative;isolation:isolate;
 }
+/* Cinematic ambient light — two soft glowing orbs that drift slowly
+   behind everything, so the felt never reads as a flat, static color. */
+body::before, body::after{
+  content:'';position:fixed;z-index:-1;border-radius:50%;filter:blur(70px);pointer-events:none;
+}
+body::before{
+  width:70vmax;height:70vmax;top:-25vmax;left:-15vmax;
+  background:radial-gradient(circle, rgba(212,175,90,0.16), transparent 65%);
+  animation:auroraDriftA 22s ease-in-out infinite;
+}
+body::after{
+  width:60vmax;height:60vmax;bottom:-22vmax;right:-18vmax;
+  background:radial-gradient(circle, rgba(57,168,96,0.20), transparent 65%);
+  animation:auroraDriftB 26s ease-in-out infinite;
+}
+@keyframes auroraDriftA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(6vmax,4vmax) scale(1.12)}}
+@keyframes auroraDriftB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-5vmax,-6vmax) scale(1.15)}}
 button,input{font-family:inherit;-webkit-appearance:none}
 button:active{transform:scale(0.96)}
 .gold-text{font-family:'Cinzel',serif;background:linear-gradient(180deg,#fff6d8 0%,#f0cf7a 28%,#caa03e 55%,#f5deA0 72%,#a97c2b 100%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
   filter:drop-shadow(0 2px 0 rgba(0,0,0,0.5)) drop-shadow(0 4px 10px rgba(0,0,0,0.55));}
+.gold-text-glow{animation:goldGlowPulse 3.2s ease-in-out infinite}
+@keyframes goldGlowPulse{
+  0%,100%{filter:drop-shadow(0 2px 0 rgba(0,0,0,0.5)) drop-shadow(0 4px 10px rgba(0,0,0,0.55)) drop-shadow(0 0 6px rgba(232,197,120,0.25))}
+  50%{filter:drop-shadow(0 2px 0 rgba(0,0,0,0.5)) drop-shadow(0 4px 14px rgba(0,0,0,0.6)) drop-shadow(0 0 18px rgba(232,197,120,0.65))}
+}
 .ornate-border{border:1px solid rgba(212,175,90,0.55);box-shadow:inset 0 0 0 1px rgba(212,175,90,0.18), 0 4px 14px rgba(0,0,0,0.45);}
 @keyframes popIn{0%{transform:scale(0.5);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1);opacity:1}}
 @keyframes slideUp{0%{transform:translateY(16px);opacity:0}100%{transform:translateY(0);opacity:1}}
 @keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
 @keyframes glowPulse{0%,100%{box-shadow:0 0 0 rgba(232,184,109,0)}50%{box-shadow:0 0 18px rgba(232,184,109,0.5)}}
+@keyframes beamPulse{0%,100%{opacity:0.7}50%{opacity:1}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes cardShine{0%{transform:translateX(-120%) rotate(20deg)}100%{transform:translateX(220%) rotate(20deg)}}
+.cardback-shine{position:absolute;top:-40%;left:0;width:40%;height:180%;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  animation:cardShine 3.4s ease-in-out infinite;pointer-events:none}
 @keyframes dealFly{0%{transform:translate(-50%,-50%) rotate(0deg) scale(1);opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(360deg) scale(0.65);opacity:0}}
 .deal-fly{animation:dealFly 0.48s cubic-bezier(.2,.7,.3,1) forwards}
 @keyframes dealFlyMe{0%{transform:translate(-50%,-50%) rotate(0deg) scale(1);opacity:1}60%{opacity:1}100%{transform:translate(-50%,calc(-50% + 46vh)) rotate(280deg) scale(0.7);opacity:0}}
@@ -198,10 +224,11 @@ function CardBack({onTap, w=56, h=78, count}){
     <div onPointerDown={onTap} style={{...TAP,
       width:w, height:h, borderRadius:10, position:'relative', overflow:'hidden',
       border:`1.5px solid ${SC.gold}`,
-      boxShadow:'0 3px 8px rgba(0,0,0,0.55), inset 0 0 0 3px rgba(10,26,17,0.6)',
+      boxShadow:'0 3px 8px rgba(0,0,0,0.55), 0 0 0 1px rgba(212,175,90,0.25), inset 0 0 0 3px rgba(10,26,17,0.6)',
       display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,
     }}>
       <img src="assets/cards/back.svg" draggable={false} style={{width:'100%',height:'100%',objectFit:'cover',pointerEvents:'none',userSelect:'none'}} />
+      <div className="cardback-shine"/>
       {count!=null && <span style={{position:'absolute',bottom:-7,left:'50%',transform:'translateX(-50%)',textAlign:'center',fontSize:'0.62rem',fontWeight:800,color:'#1a1206',
         background:`linear-gradient(180deg,#f3d888,${SC.goldDeep})`,border:'1.5px solid #1a1206',minWidth:18,height:18,borderRadius:9,padding:'0 4px',
         display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 4px rgba(0,0,0,0.5)'}}>{count}</span>}
@@ -214,19 +241,19 @@ function Button({children, onTap, color=SC.gold, disabled, style, variant, sub})
   const isRed = color===SC.red;
   return (
     <button onPointerDown={disabled?undefined:onTap} disabled={disabled} style={{...TAP,
-      padding: sub ? '11px 20px' : '13px 22px', borderRadius:14, border:isGhost?`1.5px solid ${SC.border}`:`1px solid rgba(255,255,255,0.25)`,
+      padding: sub ? '11px 20px' : '13px 22px', borderRadius:14, border:isGhost?`1.5px solid ${SC.border}`:`1px solid rgba(255,255,255,0.35)`,
       background: disabled ? 'rgba(255,255,255,0.07)'
         : isGhost ? 'rgba(255,255,255,0.04)'
-        : `linear-gradient(180deg, ${color}, ${color}bb)`,
+        : `linear-gradient(180deg, ${color}ee, ${color}bb 55%, ${color}99)`,
       color: disabled ? SC.muted : isGhost ? SC.text : (isRed?'#fff':'#1a1206'),
       fontWeight:800, fontSize:'0.9rem', opacity:disabled?0.55:1,
-      boxShadow: disabled||isGhost ? 'none' : `0 6px 16px -4px ${color}99, 0 2px 4px rgba(0,0,0,0.4)`,
-      transition:'transform 0.12s, box-shadow 0.12s', letterSpacing:'0.01em',
+      boxShadow: disabled||isGhost ? 'none' : `0 8px 20px -4px ${color}aa, 0 2px 6px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -8px 12px -8px rgba(0,0,0,0.3)`,
+      transition:'transform 0.12s, box-shadow 0.12s', letterSpacing:'0.01em', position:'relative', overflow:'hidden',
       display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1.25,
       ...style
     }}>
-      <span>{children}</span>
-      {sub && <span style={{fontSize:'0.66rem',fontWeight:600,opacity:0.75,marginTop:1}}>{sub}</span>}
+      <span style={{position:'relative'}}>{children}</span>
+      {sub && <span style={{position:'relative',fontSize:'0.66rem',fontWeight:600,opacity:0.75,marginTop:1}}>{sub}</span>}
     </button>
   );
 }
@@ -310,7 +337,7 @@ function DealAnimation({players, round, room, playerId, onDone}){
         <div style={{width:34,height:34}}/>
         <div style={{flex:1,textAlign:'center'}}>
           <div style={{fontSize:'0.85rem',marginBottom:-4}}>👑</div>
-          <h1 className="gold-text" style={{fontFamily:'Cinzel,serif',fontSize:'1.5rem',fontWeight:900,letterSpacing:'0.03em',margin:0,lineHeight:1}}>SUPER</h1>
+          <h1 className="gold-text gold-text-glow" style={{fontFamily:'Cinzel,serif',fontSize:'1.5rem',fontWeight:900,letterSpacing:'0.03em',margin:0,lineHeight:1}}>SUPER</h1>
         </div>
         <div style={{width:34,height:34}}/>
       </div>
@@ -494,7 +521,7 @@ function Home({onEntered}){
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'20px 20px 40px',gap:16}}>
         <div className="slide-up" style={{textAlign:'center',position:'relative',width:'100%'}}>
           <div style={{fontSize:'1.4rem',marginBottom:-6}}>👑</div>
-          <h1 className="gold-text" style={{fontFamily:'Cinzel,serif',fontSize:'clamp(2.6rem,13vw,3.4rem)',fontWeight:900,letterSpacing:'0.02em',margin:0}}>SUPER</h1>
+          <h1 className="gold-text gold-text-glow" style={{fontFamily:'Cinzel,serif',fontSize:'clamp(2.6rem,13vw,3.4rem)',fontWeight:900,letterSpacing:'0.02em',margin:0}}>SUPER</h1>
           <div className="ornate-border" style={{display:'inline-block',marginTop:6,padding:'4px 16px',borderRadius:20,fontSize:'0.68rem',
             fontWeight:700,letterSpacing:'0.12em',color:SC.gold,textTransform:'uppercase',background:'rgba(0,0,0,0.25)'}}>Het kaartspel</div>
         </div>
@@ -1155,7 +1182,7 @@ function Playing({roomId, playerId}){
           style={{...TAP,width:34,height:34,borderRadius:10,border:`1px solid ${SC.border}`,background:'rgba(255,255,255,0.06)',color:SC.gold,fontSize:'1.1rem',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>☰</button>
         <div style={{flex:1,textAlign:'center'}}>
           <div style={{fontSize:'0.85rem',marginBottom:-4}}>👑</div>
-          <h1 className="gold-text" style={{fontFamily:'Cinzel,serif',fontSize:'1.5rem',fontWeight:900,letterSpacing:'0.03em',margin:0,lineHeight:1}}>SUPER</h1>
+          <h1 className="gold-text gold-text-glow" style={{fontFamily:'Cinzel,serif',fontSize:'1.5rem',fontWeight:900,letterSpacing:'0.03em',margin:0,lineHeight:1}}>SUPER</h1>
         </div>
         <button onPointerDown={()=>setSheet('settings')} style={{...TAP,width:34,height:34,borderRadius:10,border:`1px solid ${SC.border}`,background:'rgba(255,255,255,0.06)',color:SC.gold,fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>⚙</button>
       </div>
@@ -1217,13 +1244,20 @@ function Playing({roomId, playerId}){
           const glowStyle = canDraw ? {boxShadow:`0 0 0 3px ${SC.green}, 0 0 14px 1px ${SC.green}99`, animation:'glowPulse 1.6s ease-in-out infinite'} : {};
           return (
         <div style={{flex:1,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',minHeight:120}}>
+          {/* an overhead spotlight beam, like a single light hanging
+              over the table, breathing gently so the center of the
+              screen never sits static */}
+          <div style={{position:'absolute',left:'50%',top:'-30%',transform:'translateX(-50%)',
+            width:'140%',height:'160%',pointerEvents:'none',
+            background:'radial-gradient(ellipse 50% 55% at 50% 20%, rgba(255,238,190,0.14), transparent 62%)',
+            animation:'beamPulse 4.5s ease-in-out infinite'}}/>
           {/* a soft felt "table well" so the piles sit inside an
               intentional recessed spotlight instead of floating in
               plain empty green */}
           <div style={{position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',
             width:'min(94%,360px)',height:'82%',borderRadius:'50%',pointerEvents:'none',
-            background:'radial-gradient(ellipse at center, rgba(0,0,0,0.22), transparent 70%)',
-            boxShadow:'inset 0 2px 30px rgba(0,0,0,0.35)'}}/>
+            background:'radial-gradient(ellipse at center, rgba(0,0,0,0.26), transparent 70%)',
+            boxShadow:'inset 0 2px 34px rgba(0,0,0,0.4), 0 0 40px 10px rgba(212,175,90,0.05)'}}/>
           <div style={{position:'relative',display:'flex',alignItems:'center',justifyContent:'center',gap:36}}>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
             <div style={{display:'flex',alignItems:'center',gap:5,padding:'3px 10px',borderRadius:20,
