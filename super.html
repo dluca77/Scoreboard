@@ -97,7 +97,6 @@ const SC = {
   gold:'#d4af5a', goldDeep:'#a9791f', green:'#39a860', red:'#d9607f', blue:'#4f8fe0',
   purple:'#a06ae8', muted:'#a9b8a9', text:'#f1ecd8', felt:'#123320', feltDeep:'#0a1f13'
 };
-const GROUP_COLORS=[SC.green,SC.blue,SC.gold,SC.purple];
 
 function cardLabel(card){
   if(card.suit==='J') return '🃟';
@@ -1126,8 +1125,7 @@ function Playing({roomId, playerId}){
                   {r && r.hand_cards.length>0 && (
                     <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:r.opened?8:0}}>
                       {orderedCards.map((c,ci)=>{
-                        const gIdx = groupIdOf[c.id];
-                        const markerColor = gIdx!=null ? GROUP_COLORS[gIdx%GROUP_COLORS.length] : SC.red;
+                        const markerColor = groupIdOf[c.id]!=null ? SC.green : SC.red;
                         return (
                           <div key={c.id} className="pop" style={{animationDelay:`${pi*0.12+ci*0.03}s`,animationFillMode:'both',position:'relative'}}>
                             <Card card={c} small/>
@@ -1453,7 +1451,7 @@ function Playing({roomId, playerId}){
                     : `rotate(${fanAngleForOffset(off, n)}deg)`;
                   const groupIdx = detectedGroups.findIndex(g=>g.includes(id));
                   const isLoose = groupIdx===-1;
-                  const markerColor = isLoose ? (looseIds.length===1?SC.gold:SC.red) : GROUP_COLORS[groupIdx%GROUP_COLORS.length];
+                  const markerColor = isLoose ? (looseIds.length===1?SC.gold:SC.red) : SC.green;
                   return (
                     <div key={id} data-card-id={id}
                       className={freshIds.has(id)?'pop':undefined}
