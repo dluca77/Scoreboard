@@ -887,6 +887,7 @@ function Playing({roomId, playerId}){
   const fanWrapRef=useRef(null);
   const stockRef=useRef(null);
   const discardRef=useRef(null);
+  const opponentAvatarRefs=useRef({}); // playerId -> DOM element, for animating their draws/discards
   const [flights,setFlights]=useState([]); // in-flight card sprites for draw/discard
   const prevCardIdsRef=useRef(new Set()); // to pop-in newly-arrived cards in the fan
   const [freshIds,setFreshIds]=useState(new Set());
@@ -1120,6 +1121,35 @@ function Playing({roomId, playerId}){
     window.addEventListener('resize', measure);
     return ()=>window.removeEventListener('resize', measure);
   },[fanOrder.length]);
+
+  // Animate an opponent's draw/discard too, not just our own — diffed
+  // from the public parts of the round row (stock/discard pile sizes,
+  // whose turn it is) since we never see their actual hand. A draw
+  // doesn't change turn_player_id (only a discard advances it), so:
+  // stock/discard shrinking with the same turn player still active means
+  // that player just drew; discard growing means the *previous* turn
+  // player just discarded.
+  const prevRoundRef=useRef(null);
+  useEffect(()=>{
+    if(!round){ prevRoundRef.current=null; return; }
+    const prev = prevRoundRef.current;
+    if(prev && prev.id===round.id){
+      if(round.turn_player_id===prev.turn_player_id){
+        if(round.stock.length < prev.stock.length){
+          const drawerId = round.turn_player_id;
+          if(drawerId!==playerId) spawnFlight(stockRef.current, opponentAvatarRefs.current[drawerId], null, true);
+        } else if(round.discard.length < prev.discard.length){
+          const drawerId = round.turn_player_id;
+          if(drawerId!==playerId) spawnFlight(discardRef.current, opponentAvatarRefs.current[drawerId], prev.discard[prev.discard.length-1], false);
+        }
+      }
+      if(round.discard.length > prev.discard.length){
+        const discarderId = prev.turn_player_id;
+        if(discarderId!==playerId) spawnFlight(opponentAvatarRefs.current[discarderId], discardRef.current, round.discard[round.discard.length-1], false);
+      }
+    }
+    prevRoundRef.current = round;
+  },[round && round.id, round && round.stock.length, round && round.discard.length, round && round.turn_player_id]);
 
   if(!room) return (
     <div style={{minHeight:'100vh'}}>
@@ -1423,26 +1453,40 @@ function Playing({roomId, playerId}){
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:'0.6rem',color:SC.muted,fontWeight:700,marginBottom:3}}>RONDE {round.round_no}/{room.round_target}</div>
             <div style={{display:'flex',flexWrap:'wrap',gap:'2px 12px'}}>
-              {players.map(p=>(
-                <div key={p.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:'0.7rem'}}>
-                  <span style={{width:6,height:6,borderRadius:'50%',background:round.turn_player_id===p.id?SC.green:SC.gold,flexShrink:0}}/>
-                  <span style={{color:SC.muted}}>{p.id===playerId?'Jij':p.display_name}</span>
+              {players.map(p=>{
+                const isTurn = round.turn_player_id===p.id;
+                return (
+                <div key={p.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:'0.7rem',
+                  color:isTurn?SC.text:SC.muted,fontWeight:isTurn?800:400}}>
+                  <span style={{width:6,height:6,borderRadius:'50%',background:isTurn?SC.green:SC.border,flexShrink:0,
+                    boxShadow:isTurn?`0 0 6px ${SC.green}`:'none',animation:isTurn?'glowPulse 1.3s ease-in-out infinite':'none'}}/>
+                  <span style={{color:isTurn?SC.gold:SC.muted}}>{p.id===playerId?'Jij':p.display_name}</span>
                   <b style={{color:SC.text}}>{p.total_score}</b>
                 </div>
-              ))}
+              );})}
             </div>
           </div>
           {opponents.length>0 && (
             <div style={{display:'flex',gap:6,flexShrink:0}}>
-              {opponents.map(p=>(
-                <div key={p.id} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
-                  outline:round.turn_player_id===p.id?`2px solid ${SC.gold}`:'none', borderRadius:10, padding:2}}>
-                  <Avatar id={p.id} name={p.display_name} size={26} isBot={p.is_bot} ring={round.turn_player_id===p.id?SC.gold:SC.border}/>
-                  <span style={{fontSize:'0.5rem',color:SC.muted,fontWeight:700,maxWidth:44,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name}</span>
+              {opponents.map(p=>{
+                const isTurn = round.turn_player_id===p.id;
+                return (
+                <div key={p.id} ref={el=>{opponentAvatarRefs.current[p.id]=el;}} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,
+                  outline:isTurn?`2px solid ${SC.gold}`:'none', borderRadius:10, padding:2,
+                  background:isTurn?'rgba(212,175,90,0.12)':'none',
+                  transform:isTurn?'scale(1.08)':'scale(1)', transition:'transform 0.2s',
+                  boxShadow:isTurn?`0 0 10px 1px ${SC.gold}55`:'none',
+                  animation:isTurn?'glowPulse 1.3s ease-in-out infinite':'none'}}>
+                  <Avatar id={p.id} name={p.display_name} size={26} isBot={p.is_bot} ring={isTurn?SC.gold:SC.border}/>
+                  <span style={{fontSize:'0.5rem',color:isTurn?SC.gold:SC.muted,fontWeight:700,maxWidth:44,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name}</span>
                 </div>
-              ))}
+              );})}
             </div>
           )}
+        </div>
+        <div style={{textAlign:'center',fontSize:'0.7rem',fontWeight:800,
+          color:myTurn?SC.green:SC.muted,letterSpacing:'0.02em'}}>
+          {myTurn ? '👉 Jouw beurt!' : `⏳ Wachten op ${turnPlayer?(turnPlayer.id===playerId?'jou':turnPlayer.display_name):'…'}`}
         </div>
 
         {/* stock (with joker info) on the left, discard pile on the
