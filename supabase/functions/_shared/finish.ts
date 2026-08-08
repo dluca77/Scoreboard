@@ -1,4 +1,4 @@
-import { Card, JokerSpec, isJokerCard, minLooseValue, scoreRound, RoundResultInput } from './engine.ts';
+import { Card, JokerSpec, isJokerCard, bestPartialGrouping, scoreRound, RoundResultInput } from './engine.ts';
 
 interface PlayerRow { id: string; total_score: number; }
 interface HandRow { player_id: string; cards: Card[]; is_turning: boolean; }
@@ -13,7 +13,7 @@ export async function finalizeRound(
   round: RoundRow,
   players: PlayerRow[],
   hands: HandRow[],
-  opts: { openerPlayerId?: string; openedWithJoker?: boolean; openerLooseCards?: Card[] },
+  opts: { openerPlayerId?: string; openedWithJoker?: boolean; openerLooseCards?: Card[]; openerGroups?: string[][] },
 ) {
   // joker_rank is stored as a string (see start-round), but card.rank is a
   // number for numeric ranks — comparing them with the raw string would
@@ -25,14 +25,25 @@ export async function finalizeRound(
   };
   const stockExhausted = !opts.openerPlayerId;
 
+  // Everyone's hand — including the opener's — gets laid out for the
+  // "table reveal" at round end, so the rest of the table can see how
+  // close (or not) everyone else actually was.
+  const grouped = new Map<string, { loose: Card[]; groups: string[][] }>();
+  for (const h of hands) {
+    const opened = h.player_id === opts.openerPlayerId;
+    if (opened) {
+      grouped.set(h.player_id, { loose: opts.openerLooseCards ?? [], groups: opts.openerGroups ?? [] });
+    } else {
+      const { loose, groups } = bestPartialGrouping(h.cards, jokerSpec);
+      grouped.set(h.player_id, { loose, groups });
+    }
+  }
+
   const results: RoundResultInput[] = hands.map(h => {
     const opened = h.player_id === opts.openerPlayerId;
-    const looseCards = opened
-      ? (opts.openerLooseCards ?? [])
-      : minLooseValue(h.cards, jokerSpec).loose;
     return {
       playerId: h.player_id,
-      looseCards,
+      looseCards: grouped.get(h.player_id)!.loose,
       opened,
       openedWithJoker: opened && !!opts.openedWithJoker,
       wasTurning: h.is_turning,
@@ -41,14 +52,26 @@ export async function finalizeRound(
 
   const scores = scoreRound(results, round.open_card, { stockExhausted });
 
-  const resultRows = results.map(r => ({
-    round_id: round.id,
-    player_id: r.playerId,
-    penalty_points: scores[r.playerId],
-    opened: r.opened,
-    opened_with_joker: r.openedWithJoker,
-    was_turning: r.wasTurning,
-  }));
+  const resultRows = results.map(r => {
+    const g = grouped.get(r.playerId)!;
+    const allCards = hands.find(h => h.player_id === r.playerId)!.cards;
+    // For the opener, only the melded 14 cards should be shown (the 15th,
+    // discarded card isn't part of the completed hand); for everyone else
+    // it's whatever they were still holding when the round ended.
+    const shownCards = r.opened
+      ? allCards.filter(c => g.groups.some(group => group.includes(c.id)))
+      : allCards;
+    return {
+      round_id: round.id,
+      player_id: r.playerId,
+      penalty_points: scores[r.playerId],
+      opened: r.opened,
+      opened_with_joker: r.openedWithJoker,
+      was_turning: r.wasTurning,
+      hand_cards: shownCards,
+      groups: g.groups,
+    };
+  });
   await db.from('round_results').insert(resultRows);
 
   for (const p of players) {
