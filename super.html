@@ -642,7 +642,7 @@ function StatsSheet({roundHistory, players, onClose}){
           {r.results.map(res=>(
             <div key={res.player_id} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',fontSize:'0.82rem'}}>
               <span style={{color:SC.text}}>{nameFor(res.player_id)}{res.was_turning?' 🔄':''}{res.opened_with_joker?' 🃟':''}</span>
-              <b style={{color:res.penalty_points>0?SC.red:SC.green}}>+{res.penalty_points}</b>
+              <b style={{color:res.penalty_points>0?SC.red:SC.green}}>{res.penalty_points>0?'+':''}{res.penalty_points}</b>
             </div>
           ))}
         </div>
