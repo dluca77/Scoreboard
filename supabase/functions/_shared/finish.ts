@@ -1,6 +1,6 @@
 import { Card, JokerSpec, isJokerCard, bestPartialGrouping, cardValue, ciftGrouping, scoreRound, RoundResultInput } from './engine.ts';
 
-interface PlayerRow { id: string; total_score: number; }
+interface PlayerRow { id: string; total_score: number; is_bot?: boolean; }
 interface HandRow { player_id: string; cards: Card[]; is_turning: boolean; }
 interface RoundRow { id: string; room_id: string; open_card: Card; joker_suit: string; joker_rank: string; }
 
@@ -91,7 +91,10 @@ export async function finalizeRound(
     // Reset everyone's "ready" flag here too — the round-end screen reuses
     // the same lobby-style ready gate for starting the next round, so a
     // stale ready=true from before this round shouldn't let it skip ahead.
-    ...players.map(p => db.from('room_players').update({ total_score: p.total_score + (scores[p.id] ?? 0), ready: false }).eq('id', p.id)),
+    // Bots never get to click a ready button, so they stay permanently
+    // ready (same as when they're first added to the room) instead of
+    // getting stuck un-ready forever and blocking the host.
+    ...players.map(p => db.from('room_players').update({ total_score: p.total_score + (scores[p.id] ?? 0), ready: !!p.is_bot }).eq('id', p.id)),
     db.from('rounds').update({
       phase: 'finished',
       winner_player_id: opts.openerPlayerId ?? null,
