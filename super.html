@@ -861,7 +861,7 @@ function Playing({roomId, playerId}){
       .on('postgres_changes',{event:'*',schema:'public',table:'hands'},loadAll)
       .on('postgres_changes',{event:'*',schema:'public',table:'room_players',filter:`room_id=eq.${roomId}`},loadAll)
       .on('postgres_changes',{event:'*',schema:'public',table:'round_results'},loadAll)
-      .on('broadcast',{event:'chat'},({payload})=>{ setChatMessages(m=>[...m,payload]); })
+      .on('broadcast',{event:'chat'},({payload})=>{ if(payload.playerId!==playerId) setChatMessages(m=>[...m,payload]); })
       .subscribe();
     chatChannelRef.current = ch;
     return ()=>sb.removeChannel(ch);
@@ -871,8 +871,11 @@ function Playing({roomId, playerId}){
     const t = text.trim();
     if(!t || !chatChannelRef.current) return;
     const me = players.find(p=>p.id===playerId);
-    chatChannelRef.current.send({type:'broadcast', event:'chat',
-      payload:{ playerId, name: me?me.display_name:'Jij', text:t, at:Date.now() }});
+    const msg = { playerId, name: me?me.display_name:'Jij', text:t, at:Date.now() };
+    // Broadcast doesn't echo back to the sender by default, so without
+    // this the sender would never see their own message appear.
+    setChatMessages(m=>[...m, msg]);
+    chatChannelRef.current.send({type:'broadcast', event:'chat', payload:msg});
   }
 
   // Loads every finished round's scores for this room, on demand (only
