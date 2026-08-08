@@ -245,6 +245,62 @@ function Avatar({id, name, size=40, ring, isBot}){
   );
 }
 
+// Plays a few seconds of "dealing" before a fresh round's hand is shown —
+// purely cosmetic, since the server already dealt everything instantly.
+// Deals 2 cards at a time, round-robin, starting with the player after
+// the dealer (same seat that gets the first turn — dealerSeat/firstTurnSeat
+// in start-round mirror this order exactly, so it always matches who
+// actually goes first).
+function DealAnimation({players, round, onDone}){
+  const [counts, setCounts] = useState(()=>{
+    const o={}; players.forEach(p=>{ o[p.id]=0; }); return o;
+  });
+  const [activeId, setActiveId] = useState(null);
+  useEffect(()=>{
+    const n = players.length;
+    if(n===0){ onDone(); return; }
+    const dealerSeat = (round.round_no - 1) % n;
+    const order = [];
+    for(let lap=0; lap<7; lap++){
+      for(let i=0;i<n;i++) order.push(players[(dealerSeat+1+i)%n].id);
+    }
+    let idx=0;
+    const timer = setInterval(()=>{
+      if(idx>=order.length){
+        clearInterval(timer);
+        setActiveId(null);
+        setTimeout(onDone, 450);
+        return;
+      }
+      const pid = order[idx];
+      setActiveId(pid);
+      setCounts(c=>({...c,[pid]:(c[pid]||0)+2}));
+      idx++;
+    }, 170);
+    return ()=>clearInterval(timer);
+  },[]);
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:200,background:SC.bg,display:'flex',flexDirection:'column',
+      alignItems:'center',justifyContent:'center',gap:28}}>
+      <div className="gold-text" style={{fontFamily:'Cinzel,serif',fontSize:'1.4rem',fontWeight:900,letterSpacing:'0.05em'}}>Delen…</div>
+      <div style={{animation:'glowPulse 1.4s ease-in-out infinite'}}>
+        <CardBack/>
+      </div>
+      <div style={{display:'flex',gap:28,flexWrap:'wrap',justifyContent:'center',padding:'0 20px'}}>
+        {players.map(p=>(
+          <div key={p.id} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,
+            transform:activeId===p.id?'scale(1.1)':'scale(1)', transition:'transform 0.15s'}}>
+            <Avatar id={p.id} name={p.display_name} size={46} isBot={p.is_bot} ring={activeId===p.id?SC.gold:SC.border}/>
+            <span style={{fontSize:'0.72rem',fontWeight:700,color:SC.text,maxWidth:80,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.display_name}</span>
+            <span style={{fontSize:'0.9rem',fontWeight:900,color:SC.gold}}>{counts[p.id]||0}/14</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Top bar with exit-to-menu button, shown on every screen ──
 function TopBar({title, sub, onInfo}){
   function exit(){
@@ -572,6 +628,8 @@ function Playing({roomId, playerId}){
   const [dragDX,setDragDX]=useState(0);
   const [dragOverIndex,setDragOverIndex]=useState(null); // live insertion preview index
   const [fanScale,setFanScale]=useState(1);
+  const [dealingRoundId,setDealingRoundId]=useState(null); // round currently showing the deal animation
+  const dealtRoundIdsRef=useRef(new Set()); // rounds we've already animated, so a re-render doesn't replay it
   const dragStartXRef=useRef(0);
   const dragStartIndexRef=useRef(0);
   const dragStartSlotXRef=useRef(0); // rest-position x of the card being dragged, so picking it up doesn't visually jump
@@ -587,6 +645,18 @@ function Playing({roomId, playerId}){
     const ordered = fanOrder.map(id=>byId[id]).filter(Boolean);
     return detectAdjacentGroups(ordered, jokerSpec);
   }, [fanOrder.join(','), hand && hand.cards.map(c=>c.id).join(','), jokerSpec && jokerSpec.suit, jokerSpec && jokerSpec.rank]);
+
+  // The first time a fresh round's hand shows up (14 cards, just dealt),
+  // play the dealing animation once for it — tracked in a ref so a
+  // realtime re-render mid-animation, or coming back to an
+  // already-dealt round, doesn't replay it.
+  useEffect(()=>{
+    if(!round || round.phase!=='playing' || !hand || players.length===0) return;
+    if(hand.cards.length!==14) return;
+    if(dealtRoundIdsRef.current.has(round.id)) return;
+    dealtRoundIdsRef.current.add(round.id);
+    setDealingRoundId(round.id);
+  },[round && round.id, round && round.phase, hand && hand.cards.length, players.length]);
 
   async function loadAll(){
     const { data:r } = await sb.from('rooms').select('*').eq('id',roomId).single();
@@ -772,6 +842,10 @@ function Playing({roomId, playerId}){
       <div style={{minHeight:'calc(100vh - 68px)',display:'flex',alignItems:'center',justifyContent:'center',color:SC.muted}}>Hand laden…</div>
     </div>
   );
+
+  if(dealingRoundId===round.id){
+    return <DealAnimation players={players} round={round} onDone={()=>setDealingRoundId(null)}/>;
+  }
 
   const myTurn = round.turn_player_id===playerId;
   const cardsById = {}; hand.cards.forEach(c=>{ cardsById[c.id]=c; });
