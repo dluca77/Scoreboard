@@ -193,6 +193,13 @@ function loadDevice(){
 }
 function saveDevice(v){ try{ localStorage.setItem('super_device', JSON.stringify(v)); }catch(e){} }
 
+const RANK_ORDER_HIGH = [2,3,4,5,6,7,8,9,10,'J','Q','K','A'];
+// Descending rank sort for display purposes only (e.g. a run reads as
+// 7-6-5 left to right) — doesn't affect any game logic, which already
+// happened server-side before this ever renders.
+function sortCardsDesc(cards){
+  return [...cards].sort((a,b)=>RANK_ORDER_HIGH.indexOf(b.rank)-RANK_ORDER_HIGH.indexOf(a.rank));
+}
 const SUIT_NAME = { C:'clubs', D:'diamonds', H:'hearts', S:'spades' };
 const RANK_NAME = { 2:'02',3:'03',4:'04',5:'05',6:'06',7:'07',8:'08',9:'09',10:'10', J:'jack', Q:'queen', K:'king', A:'ace' };
 function cardImgSrc(card){
@@ -651,11 +658,27 @@ function StatsSheet({roundHistory, players, onClose}){
   );
 }
 
-function ChatSheet({messages, playerId, onSend, onClose}){
+function ChatSheet({messages, playerId, onSend, onTyping, othersTyping, players, onClose}){
   const [text,setText]=useState('');
   const scrollRef=useRef(null);
-  useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; },[messages.length]);
-  function submit(){ if(!text.trim()) return; onSend(text); setText(''); }
+  const typingStopTimerRef=useRef(null);
+  const wasTypingRef=useRef(false);
+  useEffect(()=>{ if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; },[messages.length, othersTyping.size]);
+  // Stop broadcasting "typing" if we unmount (sheet closed) mid-type.
+  useEffect(()=>()=>{ clearTimeout(typingStopTimerRef.current); if(wasTypingRef.current) onTyping(false); },[]);
+  function handleChange(v){
+    setText(v);
+    if(!wasTypingRef.current){ wasTypingRef.current=true; onTyping(true); }
+    clearTimeout(typingStopTimerRef.current);
+    typingStopTimerRef.current = setTimeout(()=>{ wasTypingRef.current=false; onTyping(false); }, 1500);
+  }
+  function submit(){
+    if(!text.trim()) return;
+    clearTimeout(typingStopTimerRef.current);
+    if(wasTypingRef.current){ wasTypingRef.current=false; onTyping(false); }
+    onSend(text); setText('');
+  }
+  const typingNames = [...othersTyping].map(id=>{ const p=players.find(p=>p.id===id); return p?p.display_name:'Iemand'; });
   return (
     <Sheet title="Chat" onClose={onClose}>
       <div ref={scrollRef} style={{display:'flex',flexDirection:'column',gap:6,maxHeight:'46vh',overflowY:'auto',marginBottom:10}}>
@@ -668,9 +691,20 @@ function ChatSheet({messages, playerId, onSend, onClose}){
             <div style={{fontSize:'0.84rem',color:SC.text,wordBreak:'break-word'}}>{m.text}</div>
           </div>
         ))}
+        {typingNames.length>0 && (
+          <div className="fade-in" style={{alignSelf:'flex-start',display:'flex',alignItems:'center',gap:6,
+            color:SC.muted,fontSize:'0.72rem',padding:'2px 4px'}}>
+            <span style={{display:'flex',gap:2}}>
+              <span style={{width:5,height:5,borderRadius:'50%',background:SC.muted,animation:'glowPulse 1s ease-in-out infinite'}}/>
+              <span style={{width:5,height:5,borderRadius:'50%',background:SC.muted,animation:'glowPulse 1s ease-in-out 0.15s infinite'}}/>
+              <span style={{width:5,height:5,borderRadius:'50%',background:SC.muted,animation:'glowPulse 1s ease-in-out 0.3s infinite'}}/>
+            </span>
+            {typingNames.join(', ')} {typingNames.length===1?'typt':'typen'}…
+          </div>
+        )}
       </div>
       <div style={{display:'flex',gap:8,flexShrink:0}}>
-        <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') submit();}}
+        <input value={text} onChange={e=>handleChange(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') submit();}}
           placeholder="Bericht…" style={{flex:1,padding:'9px 12px',borderRadius:14,border:`1.5px solid ${SC.border}`,
           background:'rgba(0,0,0,0.28)',color:SC.text,fontSize:'0.9rem'}}/>
         <button onPointerDown={submit} style={{...TAP,padding:'0 16px',borderRadius:12,border:'none',
@@ -837,6 +871,8 @@ function Playing({roomId, playerId}){
   const [sheet,setSheet]=useState(null); // 'menu' | 'settings' | 'leaderboard' | 'stats' | 'chat'
   const [roundHistory,setRoundHistory]=useState(null); // [{round_no, results:[...]}]
   const [chatMessages,setChatMessages]=useState([]);
+  const [othersTyping,setOthersTyping]=useState(new Set());
+  const typingTimeoutsRef=useRef({}); // playerId -> timer, clears the "typing" state if no update arrives
   const chatChannelRef=useRef(null);
   const [fanOrder,setFanOrder]=useState([]); // manual drag order of your whole hand
   const [dragId,setDragId]=useState(null);
@@ -900,21 +936,28 @@ function Playing({roomId, playerId}){
     setDealingRoundId(round.id);
   },[round && round.id, round && round.phase, hand && hand.cards.length, players.length]);
 
+  // Fetches whatever's independent in parallel instead of chaining every
+  // query one after another — each round-trip is real network latency, and
+  // this fires on every realtime update, so a fully sequential chain here
+  // was the main source of the multi-second lag before an opponent's move
+  // became visible.
   async function loadAll(){
-    const { data:r } = await sb.from('rooms').select('*').eq('id',roomId).single();
+    const [{data:r}, {data:ps}] = await Promise.all([
+      sb.from('rooms').select('*').eq('id',roomId).single(),
+      sb.from('room_players').select('*').eq('room_id',roomId).order('seat_order'),
+    ]);
     setRoom(r);
-    const { data:ps } = await sb.from('room_players').select('*').eq('room_id',roomId).order('seat_order');
     setPlayers(ps||[]);
     if(!r) return;
     const { data:rd } = await sb.from('rounds').select('*').eq('room_id',roomId).eq('round_no', r.current_round).maybeSingle();
     setRound(rd||null);
     if(rd){
-      const { data:h } = await sb.from('hands').select('*').eq('round_id',rd.id).eq('player_id',playerId).maybeSingle();
+      const [{data:h}, rrRes] = await Promise.all([
+        sb.from('hands').select('*').eq('round_id',rd.id).eq('player_id',playerId).maybeSingle(),
+        rd.phase==='finished' ? sb.from('round_results').select('*').eq('round_id',rd.id) : Promise.resolve({data:null}),
+      ]);
       setHand(h||null);
-      if(rd.phase==='finished'){
-        const { data:rr } = await sb.from('round_results').select('*').eq('round_id',rd.id);
-        setResults(rr||null);
-      } else setResults(null);
+      setResults(rd.phase==='finished' ? (rrRes.data||null) : null);
     }
   }
 
@@ -926,7 +969,28 @@ function Playing({roomId, playerId}){
       .on('postgres_changes',{event:'*',schema:'public',table:'hands'},loadAll)
       .on('postgres_changes',{event:'*',schema:'public',table:'room_players',filter:`room_id=eq.${roomId}`},loadAll)
       .on('postgres_changes',{event:'*',schema:'public',table:'round_results'},loadAll)
-      .on('broadcast',{event:'chat'},({payload})=>{ if(payload.playerId!==playerId) setChatMessages(m=>[...m,payload]); })
+      .on('broadcast',{event:'chat'},({payload})=>{
+        if(payload.playerId!==playerId) setChatMessages(m=>[...m,payload]);
+        // A finished message always means they've stopped typing, even if
+        // the "stopped" broadcast is still in flight.
+        clearTimeout(typingTimeoutsRef.current[payload.playerId]);
+        setOthersTyping(s=>{ if(!s.has(payload.playerId)) return s; const n=new Set(s); n.delete(payload.playerId); return n; });
+      })
+      .on('broadcast',{event:'typing'},({payload})=>{
+        if(payload.playerId===playerId) return;
+        clearTimeout(typingTimeoutsRef.current[payload.playerId]);
+        if(payload.isTyping){
+          setOthersTyping(s=>new Set(s).add(payload.playerId));
+          // Safety net in case the "stopped typing" broadcast never
+          // arrives (tab closed, connection dropped mid-type) — don't
+          // leave the indicator stuck on forever.
+          typingTimeoutsRef.current[payload.playerId] = setTimeout(()=>{
+            setOthersTyping(s=>{ const n=new Set(s); n.delete(payload.playerId); return n; });
+          }, 4000);
+        } else {
+          setOthersTyping(s=>{ if(!s.has(payload.playerId)) return s; const n=new Set(s); n.delete(payload.playerId); return n; });
+        }
+      })
       .subscribe();
     chatChannelRef.current = ch;
     return ()=>sb.removeChannel(ch);
@@ -941,6 +1005,11 @@ function Playing({roomId, playerId}){
     // this the sender would never see their own message appear.
     setChatMessages(m=>[...m, msg]);
     chatChannelRef.current.send({type:'broadcast', event:'chat', payload:msg});
+  }
+
+  function sendTyping(isTyping){
+    if(!chatChannelRef.current) return;
+    chatChannelRef.current.send({type:'broadcast', event:'typing', payload:{playerId, isTyping}});
   }
 
   // Loads every finished round's scores for this room, on demand (only
@@ -1120,8 +1189,8 @@ function Playing({roomId, playerId}){
               // arbitrary order was scattering same-colored cards apart
               // and making the grouping unreadable.
               const orderedCards = r ? [
-                ...r.groups.flat().map(id=>r.hand_cards.find(c=>c.id===id)).filter(Boolean),
-                ...r.hand_cards.filter(c=>groupIdOf[c.id]==null),
+                ...r.groups.flatMap(g=>sortCardsDesc(g.map(id=>r.hand_cards.find(c=>c.id===id)).filter(Boolean))),
+                ...sortCardsDesc(r.hand_cards.filter(c=>groupIdOf[c.id]==null)),
               ] : [];
               const looseCount = r ? r.hand_cards.filter(c=>groupIdOf[c.id]==null).length : 0;
               const looseValue = r ? orderedCards.slice(orderedCards.length-looseCount).reduce((s,c)=>s+(typeof c.rank==='number'?c.rank:(c.rank==='A'?1:10)),0) : 0;
@@ -1164,7 +1233,31 @@ function Playing({roomId, playerId}){
               </div>
             ))}
           </div>
-          <Button onTap={()=>invokeFn('start-round',{roomId})} style={{marginTop:16}}>▶ Volgende ronde</Button>
+          {(()=>{
+            const isHost = players[0] && players[0].id===playerId;
+            const me = players.find(p=>p.id===playerId);
+            const othersReady = players.filter(p=>p.id!==playerId).every(p=>p.ready);
+            async function toggleReady(){
+              if(!me) return;
+              setBusy(true); setErr('');
+              const { error } = await sb.from('room_players').update({ ready: !me.ready }).eq('id', playerId);
+              setBusy(false);
+              if(error) setErr(error.message);
+            }
+            if(isHost) return (
+              <div style={{marginTop:16,width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:6,alignItems:'center'}}>
+                <Button disabled={busy||!othersReady} onTap={()=>invokeFn('start-round',{roomId})} style={{width:'100%'}}>
+                  {busy?'Bezig…':!othersReady?'Wacht tot iedereen klaar is…':'▶ Volgende ronde'}
+                </Button>
+                <div style={{color:SC.muted,fontSize:'0.7rem'}}>Jij bent host — jij start zodra iedereen klaar is</div>
+              </div>
+            );
+            return (
+              <Button color={me&&me.ready?SC.surface:SC.green} variant={me&&me.ready?'ghost':undefined} disabled={busy} onTap={toggleReady} style={{marginTop:16,width:'100%',maxWidth:340}}>
+                {me&&me.ready?'✓ Klaar — tik om te annuleren':'Ik ben klaar voor de volgende ronde'}
+              </Button>
+            );
+          })()}
         </div>
       </div>
     );
@@ -1314,7 +1407,7 @@ function Playing({roomId, playerId}){
       )}
       {sheet==='leaderboard' && <LeaderboardSheet players={players} playerId={playerId} onClose={()=>setSheet(null)}/>}
       {sheet==='stats' && <StatsSheet roundHistory={roundHistory} players={players} onClose={()=>setSheet(null)}/>}
-      {sheet==='chat' && <ChatSheet messages={chatMessages} playerId={playerId} onSend={sendChat} onClose={()=>setSheet(null)}/>}
+      {sheet==='chat' && <ChatSheet messages={chatMessages} playerId={playerId} onSend={sendChat} onTyping={sendTyping} othersTyping={othersTyping} players={players} onClose={()=>setSheet(null)}/>}
 
       {/* faint table watermark */}
       <div style={{position:'absolute',top:'34%',left:'50%',transform:'translate(-50%,-50%)',fontFamily:'Cinzel,serif',
@@ -1553,7 +1646,14 @@ function Playing({roomId, playerId}){
             color:active?SC.gold:SC.muted,transition:'color 0.15s'}}>
             {active && <span style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',width:26,height:3,
               borderRadius:2,background:`linear-gradient(90deg,${SC.goldDeep},${SC.gold})`,boxShadow:`0 0 8px ${SC.gold}99`}}/>}
-            <span style={{fontSize:'1.1rem',filter:active?`drop-shadow(0 0 6px ${SC.gold}66)`:'none',transform:active?'translateY(-1px)':'none',transition:'transform 0.15s'}}>{icon}</span>
+            <span style={{position:'relative',fontSize:'1.1rem',filter:active?`drop-shadow(0 0 6px ${SC.gold}66)`:'none',transform:active?'translateY(-1px)':'none',transition:'transform 0.15s'}}>
+              {icon}
+              {label==='Chat' && othersTyping.size>0 && (
+                <span className="pop" style={{position:'absolute',top:-4,right:-8,minWidth:14,height:14,borderRadius:7,
+                  background:SC.red,color:'#fff',fontSize:'0.5rem',fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',
+                  padding:'0 3px',boxShadow:'0 0 0 2px #0a1a11'}}>{othersTyping.size}</span>
+              )}
+            </span>
             <span style={{fontSize:'0.55rem',fontWeight:700}}>{label}</span>
           </button>
           );

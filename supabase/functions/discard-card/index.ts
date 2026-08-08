@@ -38,12 +38,14 @@ Deno.serve((req) => handle(req, async (req) => {
   const seatIdx = players.findIndex(p => p.id === caller.id);
   const nextPlayer = players[(seatIdx + 1) % players.length];
 
-  await db.from('hands').update({ cards: remaining, is_turning: isTurning })
-    .eq('round_id', roundId).eq('player_id', caller.id);
-  await db.from('rounds').update({
-    discard: [...round.discard, discardedCard],
-    turn_player_id: nextPlayer.id,
-  }).eq('id', roundId);
+  await Promise.all([
+    db.from('hands').update({ cards: remaining, is_turning: isTurning })
+      .eq('round_id', roundId).eq('player_id', caller.id),
+    db.from('rounds').update({
+      discard: [...round.discard, discardedCard],
+      turn_player_id: nextPlayer.id,
+    }).eq('id', roundId),
+  ]);
 
   return json({ cards: remaining, isTurning, nextPlayerId: nextPlayer.id });
 }));
